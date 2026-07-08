@@ -6,10 +6,9 @@
 
 body{
 
-    background:#000;
-    color:white;
-
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+
+    color:#fff;
 
     display:flex;
     justify-content:center;
@@ -17,7 +16,15 @@ body{
 
     height:100vh;
 
-    transition:background .8s;
+    overflow:hidden;
+
+    background:linear-gradient(180deg,#141E30,#243B55);
+
+    background-size:400% 400%;
+
+    animation:bgMove 25s ease infinite;
+
+    transition:background 2s ease;
 
 }
 
@@ -40,24 +47,30 @@ body{
 
     gap:30px;
 
+    margin-bottom:30px;
+
 }
 
 .flip-card{
 
     width:220px;
+
     height:260px;
 
-    background:#1f1f1f;
+    border-radius:28px;
 
-    border-radius:25px;
+    background:rgba(255,255,255,.08);
+
+    backdrop-filter:blur(20px);
+
+    -webkit-backdrop-filter:blur(20px);
 
     position:relative;
 
     overflow:hidden;
 
     box-shadow:
-
-    0 20px 50px rgba(0,0,0,.5);
+    0 20px 60px rgba(0,0,0,.35);
 
 }
 
@@ -65,13 +78,15 @@ body{
 
     position:absolute;
 
+    top:0;
+
+    left:0;
+
     width:100%;
 
     height:50%;
 
-    top:0;
-
-    border-bottom:2px solid rgba(0,0,0,.5);
+    border-bottom:1px solid rgba(255,255,255,.08);
 
 }
 
@@ -79,11 +94,13 @@ body{
 
     position:absolute;
 
+    bottom:0;
+
+    left:0;
+
     width:100%;
 
     height:50%;
-
-    bottom:0;
 
 }
 
@@ -103,6 +120,8 @@ body{
 
     font-weight:700;
 
+    letter-spacing:-8px;
+
 }
 
 .colon{
@@ -115,49 +134,77 @@ body{
 
 .date{
 
-    margin-top:40px;
+    margin-top:20px;
 
-    font-size:42px;
+    font-size:38px;
 
-    opacity:.9;
+    opacity:.85;
 
 }
 
 .weather{
 
-    margin-top:18px;
+    margin-top:16px;
 
-    font-size:38px;
+    font-size:32px;
+
+    opacity:.95;
 
 }
 
 .message{
 
-    margin-top:60px;
+    margin-top:50px;
 
-    background:#1f1f1f;
+    padding:30px;
 
     border-radius:25px;
 
-    padding:30px;
+    background:rgba(255,255,255,.08);
+
+    backdrop-filter:blur(20px);
+
+    -webkit-backdrop-filter:blur(20px);
 
 }
 
 .message-title{
 
-    color:#ff6b6b;
+    font-size:24px;
 
-    font-size:26px;
+    color:#ff8080;
 
-    margin-bottom:18px;
+    margin-bottom:15px;
 
 }
 
 #message{
 
-    font-size:54px;
+    font-size:50px;
 
     font-weight:700;
+
+}
+
+@keyframes bgMove{
+
+0%{
+
+background-position:0% 50%;
+
+}
+
+50%{
+
+background-position:100% 50%;
+
+}
+
+100%{
+
+background-position:0% 50%;
+
+}
 
 }
 
@@ -166,6 +213,7 @@ body{
 .flip-card{
 
 width:170px;
+
 height:200px;
 
 }
@@ -178,7 +226,7 @@ font-size:130px;
 
 .colon{
 
-font-size:90px;
+font-size:80px;
 
 }
 
@@ -190,13 +238,13 @@ font-size:28px;
 
 .weather{
 
-font-size:26px;
+font-size:24px;
 
 }
 
 #message{
 
-font-size:38px;
+font-size:36px;
 
 }
 
