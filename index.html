@@ -3,13 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Message Clock</title>
 
 <link rel="stylesheet" href="style.css">
 
 </head>
-
 <body>
 
 <div class="container">
@@ -17,35 +15,37 @@
     <div class="clock">
 
         <div class="flip-card">
-            <span id="hour">19</span>
+            <div class="top"></div>
+            <div class="number" id="hour">12</div>
+            <div class="bottom"></div>
         </div>
 
+        <div class="colon">:</div>
+
         <div class="flip-card">
-            <span id="minute">30</span>
+            <div class="top"></div>
+            <div class="number" id="minute">00</div>
+            <div class="bottom"></div>
         </div>
 
     </div>
 
-    <div class="info">
+    <div class="date" id="date">
+        2026年7月8日 星期三
+    </div>
 
-        <div id="date">
-            2026年7月8日 星期三
-        </div>
-
-        <div id="weather">
-            ☀️ 30°C
-        </div>
-
+    <div class="weather" id="weather">
+        ☀️ 广州 30°C
     </div>
 
     <div class="message">
 
         <div class="message-title">
-            ❤️ 留言
+            ❤️ 今日提醒
         </div>
 
         <div id="message">
-            欢迎回家。
+            欢迎回家
         </div>
 
     </div>
