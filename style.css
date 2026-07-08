@@ -1,0 +1,34 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+#clock-container {
+    text-align: center;
+}
+
+#time {
+    font-size: 18vw;
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -0.05em;
+}
+
+#date {
+    margin-top: 20px;
+    font-size: 4vw;
+    opacity: 0.75;
+}
