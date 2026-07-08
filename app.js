@@ -1,47 +1,30 @@
+alert("app.js 已加载");
+
 function updateClock() {
 
-    const now = new Date();
+    var now = new Date();
 
-    const hour = String(now.getHours()).padStart(2, "0");
-    const minute = String(now.getMinutes()).padStart(2, "0");
+    var hour = now.getHours();
+    var minute = now.getMinutes();
 
-    document.getElementById("hour").textContent = hour;
-    document.getElementById("minute").textContent = minute;
+    if (hour < 10) hour = "0" + hour;
+    if (minute < 10) minute = "0" + minute;
 
-    document.getElementById("date").textContent =
-        now.toLocaleDateString("zh-CN", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "long"
-        });
+    document.getElementById("hour").innerHTML = hour;
+    document.getElementById("minute").innerHTML = minute;
 
-    const h = now.getHours();
+    document.getElementById("date").innerHTML =
+        now.getFullYear() + "年" +
+        (now.getMonth() + 1) + "月" +
+        now.getDate() + "日";
 
-    if (h >= 5 && h < 7) {
-        document.body.style.background =
-            "linear-gradient(180deg,#5B4B8A,#F4A261)";
-    } else if (h >= 7 && h < 17) {
-        document.body.style.background =
-            "linear-gradient(180deg,#5DADE2,#AEDFF7)";
-    } else if (h >= 17 && h < 19) {
-        document.body.style.background =
-            "linear-gradient(180deg,#F2994A,#D35400)";
-    } else if (h >= 19 && h < 23) {
-        document.body.style.background =
-            "linear-gradient(180deg,#141E30,#243B55)";
-    } else {
-        document.body.style.background =
-            "linear-gradient(180deg,#000000,#1B2735)";
-    }
-
-    document.getElementById("weather").textContent =
+    document.getElementById("weather").innerHTML =
         "☀️ 广州 30°C";
 
-    document.getElementById("message").textContent =
+    document.getElementById("message").innerHTML =
         "💧 记得喝水";
 }
 
 updateClock();
 
-setInterval(updateClock, 1000);
+setInterval(updateClock,1000);
