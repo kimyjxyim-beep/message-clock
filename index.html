@@ -1,17 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Message Clock</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Message Clock</title>
+
+<link rel="stylesheet" href="style.css">
+
 </head>
 
 <body>
 
-<div id="clock-container">
-    <div id="time">00:00</div>
-    <div id="date">Loading...</div>
+<div class="container">
+
+    <div class="clock">
+
+        <div class="flip-card">
+            <span id="hour">19</span>
+        </div>
+
+        <div class="flip-card">
+            <span id="minute">30</span>
+        </div>
+
+    </div>
+
+    <div class="info">
+
+        <div id="date">
+            2026年7月8日 星期三
+        </div>
+
+        <div id="weather">
+            ☀️ 30°C
+        </div>
+
+    </div>
+
+    <div class="message">
+
+        <div class="message-title">
+            ❤️ 留言
+        </div>
+
+        <div id="message">
+            欢迎回家。
+        </div>
+
+    </div>
+
 </div>
 
 <script src="app.js"></script>
