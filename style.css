@@ -5,7 +5,7 @@
 }
 
 body{
-    background:#000;
+    background:#0b0b0b;
     color:#fff;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
 
@@ -17,85 +17,107 @@ body{
 }
 
 .container{
-    width:90%;
-    max-width:700px;
+    width:92%;
+    max-width:900px;
 }
 
 .clock{
     display:flex;
     justify-content:center;
-    gap:25px;
+    gap:32px;
 }
 
 .flip-card{
+    position:relative;
 
-    width:240px;
-    height:280px;
+    width:260px;
+    height:300px;
 
-    background:#1f1f1f;
+    background:#1b1b1b;
 
-    border-radius:30px;
+    border-radius:28px;
 
     display:flex;
-
     justify-content:center;
-
     align-items:center;
+
+    box-shadow:0 20px 40px rgba(0,0,0,.45);
+
+    overflow:hidden;
+}
+
+.flip-card::before{
+
+    content:"";
+
+    position:absolute;
+
+    top:50%;
+
+    left:0;
+
+    width:100%;
+
+    height:2px;
+
+    background:#101010;
+}
+
+.flip-card span{
 
     font-size:180px;
 
-    font-weight:bold;
+    font-weight:700;
 
-    box-shadow:0 10px 30px rgba(0,0,0,.5);
-
+    line-height:1;
 }
 
 .info{
 
-    text-align:center;
-
     margin-top:40px;
 
+    text-align:center;
+
+    color:#bdbdbd;
+}
+
+#date{
+
     font-size:34px;
-
-    color:#bbbbbb;
-
 }
 
 #weather{
 
-    margin-top:15px;
+    margin-top:12px;
 
+    font-size:32px;
 }
 
 .message{
 
     margin-top:50px;
 
-    background:#1f1f1f;
+    background:#1b1b1b;
 
-    border-radius:25px;
+    border-radius:24px;
 
-    padding:25px;
+    padding:28px;
 
     text-align:center;
-
 }
 
 .message-title{
 
-    color:#888;
+    font-size:22px;
 
-    margin-bottom:15px;
+    color:#8d8d8d;
 
-    font-size:26px;
-
+    margin-bottom:18px;
 }
 
 #message{
 
-    font-size:40px;
+    font-size:42px;
 
     font-weight:600;
-
 }
