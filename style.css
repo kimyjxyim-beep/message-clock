@@ -9,56 +9,50 @@ body {
     color: #ffffff;
     display: flex;
     justify-content: center;
-    /* 改為 flex-start 方便控制整體下移比例 */
     align-items: flex-start;
     min-height: 100vh;
     overflow: hidden;
-    /* 更換為深色沉穩漸層，模擬 Apple 暗色模式背景 */
     background: linear-gradient(135deg, #1c1c1e 0%, #000000 100%);
 }
 
 .container {
     width: 92%;
-    max-width: 1024px;
-    /* 控制頂部留白，讓整體視覺重心稍微下移但不過度 */
-    margin-top: 12vh; 
+    max-width: 900px;
+    margin-top: 7vh; 
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
 /* ====================
-   第一階段：時鐘與日期
+   上半部：時鐘與日期
 ==================== */
-
 .header-section {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
-    margin-bottom: 60px; /* 留出與下方卡片的呼吸空間 */
+    margin-bottom: 45px; 
 }
 
 .clock {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     width: 100%;
 }
 
 .clock > div {
-    margin: 0 8px; /* 縮小卡片與冒號的間距 */
+    margin: 0 8px;
 }
 
 .flip-card {
-    /* 放大卡片尺寸，使其佔據更大的視覺比例 */
     width: 38vw;
-    max-width: 360px; 
-    height: 42vw;
-    max-height: 400px;
+    max-width: 350px; 
+    height: 40vw;
+    max-height: 380px;
     border-radius: 32px;
-    /* 顏色改為深灰透黑，更符合高級感 */
     background: rgba(40, 40, 42, 0.85);
     position: relative;
     overflow: hidden;
@@ -73,7 +67,6 @@ body {
     left: 0;
     width: 100%;
     height: 50%;
-    /* 分割線改為極細的暗色，模擬精密的機械感 */
     border-bottom: 2px solid rgba(0, 0, 0, 0.6);
     box-shadow: inset 0 -8px 20px rgba(0, 0, 0, 0.2);
 }
@@ -96,8 +89,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    /* 字體大幅放大，減輕字重以提升現代感 */
-    font-size: 280px; 
+    font-size: 260px; 
     font-weight: 500;
     letter-spacing: -6px;
     color: #f5f5f7;
@@ -107,7 +99,6 @@ body {
     transform-origin: center;
 }
 
-/* 翻頁動效優化，加入一點 z 軸視角 */
 .number.flip {
     -webkit-transform: rotateX(90deg) scale(0.95);
     transform: rotateX(90deg) scale(0.95);
@@ -115,28 +106,92 @@ body {
 }
 
 .colon {
-    /* 縮小冒號，降低不必要的視覺干擾 */
     font-size: 80px;
     font-weight: 400;
     color: rgba(255,255,255,0.4);
-    transform: translateY(-8px); /* 視覺微調對齊 */
+    transform: translateY(-8px);
 }
 
 .date {
-    /* 日期字體縮小，克制且高級 */
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 400;
-    color: rgba(235, 235, 245, 0.6); /* Apple 標準次要文字顏色 */
+    color: rgba(235, 235, 245, 0.6);
     letter-spacing: 2px;
 }
 
 /* ====================
-   待優化的下半部區域 (維持基本顯示)
+   下半部：毛玻璃卡片
 ==================== */
 .widget-section {
     width: 100%;
+    max-width: 800px; 
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+}
+
+/* 雙欄佈局 (支援 iOS 9) */
+.left-col {
+    width: 48%;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    opacity: 0.5; /* 暫時降低透明度，讓我們專注於時鐘 */
+}
+
+.right-col {
+    width: 48%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 統一的卡片樣式 */
+.card {
+    background: rgba(40, 40, 42, 0.6);
+    border-radius: 24px;
+    padding: 24px;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.weather-card {
+    margin-bottom: 20px; 
+}
+
+.message {
+    flex: 1; /* 讓留言卡片自動填滿右側高度，對齊左側的兩個卡片 */
+    display: flex;
+    flex-direction: column;
+}
+
+.card-title {
+    font-size: 15px;
+    font-weight: 400;
+    color: rgba(235, 235, 245, 0.5);
+    margin-bottom: 16px;
+}
+
+.weather-main {
+    font-size: 32px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.weather-sub {
+    font-size: 13px;
+    color: rgba(235, 235, 245, 0.5);
+}
+
+.card-content {
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #ffffff;
+}
+
+/* 收到新留言時的動畫效果 */
+.message.pulse {
+    background: rgba(255, 128, 128, 0.25);
+    transform: scale(1.02);
+    transition: background 0.5s ease, transform 0.3s ease;
 }
