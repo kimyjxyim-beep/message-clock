@@ -80,7 +80,7 @@ function updateBackground(hour) {
     }
 }
 
-// ========== 真实天气(Open-Meteo, HTTPS + 时间戳防缓存) ==========
+// ========== 真实天气(Open-Meteo, 恢复标准 HTTPS 避免报错) ==========
 var WEATHER_LAT = 23.13;
 var WEATHER_LON = 113.26;
 var WEATHER_CITY_NAME = "广州";
@@ -108,11 +108,9 @@ function weatherCodeToInfo(code) {
 }
 
 function fetchWeather() {
-    var timestamp = new Date().getTime();
-    
-    // 使用 HTTPS 並加上時間戳確保每次抓取最新資料
+    // 移除时间戳，使用标准 API 网址，避免服务器返回 400 错误
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WEATHER_LAT +
-        "&longitude=" + WEATHER_LON + "&current_weather=true&_t=" + timestamp;
+        "&longitude=" + WEATHER_LON + "&current_weather=true";
 
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url, true);
