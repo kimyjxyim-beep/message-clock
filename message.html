@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日留言</title>
+<link rel="stylesheet" href="message.css">
+</head>
+<body>
+
+<div class="box">
+
+    <div class="title">今日留言</div>
+
+    <textarea id="content" placeholder="记得买猫粮..." maxlength="60"></textarea>
+
+    <button id="send-btn">发送</button>
+
+    <div id="status"></div>
+
+    <div class="history-title">最近留言</div>
+    <div id="history"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="message.js"></script>
+
+</body>
+</html>

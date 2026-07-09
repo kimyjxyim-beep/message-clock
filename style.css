@@ -24,11 +24,68 @@ body{
 
     animation:bgMove 25s ease infinite;
 
-    transition:background 2s ease;
+    transition:background 3s ease;
 
 }
 
+/* ===== 时间段主题背景 ===== */
+
+body.theme-sunrise{
+    background:linear-gradient(180deg,#FF9A56,#FFAD84,#FFD9A0);
+}
+
+body.theme-day{
+    background:linear-gradient(180deg,#4facfe,#00c6ff,#67d3ff);
+}
+
+body.theme-sunset{
+    background:linear-gradient(180deg,#FF6B6B,#F06595,#845EC2);
+}
+
+body.theme-night{
+    background:linear-gradient(180deg,#141E30,#243B55);
+}
+
+body.theme-midnight{
+    background:linear-gradient(180deg,#0f0c29,#302b63,#24243e);
+}
+
+/* ===== 天气叠加效果(在时间背景基础上加一层色调) ===== */
+
+body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    transition:background 2s ease, opacity 2s ease;
+    opacity:0;
+    z-index:0;
+}
+
+body.weather-sunny::after{
+    background:radial-gradient(circle at 50% 20%, rgba(255,220,120,.25), transparent 60%);
+    opacity:1;
+}
+
+body.weather-cloudy::after{
+    background:linear-gradient(180deg, rgba(180,190,200,.2), transparent);
+    opacity:1;
+}
+
+body.weather-rain::after{
+    background:linear-gradient(180deg, rgba(40,60,90,.35), rgba(20,30,50,.15));
+    opacity:1;
+}
+
+body.weather-snow::after{
+    background:linear-gradient(180deg, rgba(255,255,255,.25), transparent);
+    opacity:1;
+}
+
 .container{
+    position:relative;
+    z-index:1;
+
 
     width:90%;
     max-width:900px;
@@ -71,6 +128,8 @@ body{
 
     box-shadow:
     0 20px 60px rgba(0,0,0,.35);
+
+    perspective:600px;
 
 }
 
@@ -122,6 +181,16 @@ body{
 
     letter-spacing:-8px;
 
+    transition:transform .15s ease-in, opacity .15s ease-in;
+
+    transform-origin:center;
+
+}
+
+/* 翻页动效:数字变化时短暂缩小+淡出再回弹 */
+.number.flip{
+    transform:scaleY(0.4);
+    opacity:0.3;
 }
 
 .colon{
@@ -166,6 +235,13 @@ body{
 
     -webkit-backdrop-filter:blur(20px);
 
+    transition:background .5s ease, transform .3s ease;
+
+}
+
+.message.pulse{
+    background:rgba(255,128,128,.25);
+    transform:scale(1.03);
 }
 
 .message-title{
