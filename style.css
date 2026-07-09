@@ -96,9 +96,9 @@ body.weather-snow::after{
 }
 
 .flip-card{
-    /* 放大外框尺寸以包覆數字 */
-    width: 290px; 
-    height: 330px; 
+    /* 再次加寬加高外框尺寸 */
+    width: 320px; 
+    height: 350px; 
     border-radius:28px;
     background:rgba(255,255,255,.08);
     backdrop-filter:blur(20px);
@@ -138,8 +138,8 @@ body.weather-snow::after{
     display:flex;
     justify-content:center;
     align-items:center;
-    /* 稍微收縮一點字體，確保不會太貼近邊緣 */
-    font-size:230px; 
+    /* 將字體調整到絕對安全的尺寸 */
+    font-size:210px; 
     font-weight:700;
     letter-spacing:-8px;
     -webkit-transition:-webkit-transform .15s ease-in, opacity .15s ease-in;
@@ -212,11 +212,11 @@ body.weather-snow::after{
 
 @media(max-width:900px){
     .flip-card{
-        width:170px;
-        height:200px;
+        width:220px;
+        height:260px;
     }
     .number{
-        font-size:130px;
+        font-size:150px;
     }
     .colon{
         font-size:80px;
