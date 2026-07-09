@@ -117,7 +117,10 @@ body.weather-snow::after{
     left:0;
     width:100%;
     height:50%;
-    border-bottom:1px solid rgba(255,255,255,.08);
+    /* 加粗分割線，改用半透明黑色模擬物理縫隙 */
+    border-bottom: 2px solid rgba(0, 0, 0, 0.4);
+    /* 增加內部陰影讓上半部有立體感 */
+    box-shadow: inset 0 -4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .bottom{
@@ -126,6 +129,8 @@ body.weather-snow::after{
     left:0;
     width:100%;
     height:50%;
+    /* 給下半部加上微弱的頂部邊框，增加上下分離的錯覺 */
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .number{
