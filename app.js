@@ -71,34 +71,14 @@ function playDing() {
     } catch (e) {}
 }
 
-// 彈窗控制邏輯
-var popupTimeout = null;
-function showPopup(text) {
-    var overlay = document.getElementById("popup-overlay");
-    var popupText = document.getElementById("popup-text");
-    
-    popupText.innerHTML = text;
-    overlay.classList.add("show");
-
-    // 清除上一次的計時器，避免連續發留言時提早關閉
-    if (popupTimeout) {
-        clearTimeout(popupTimeout);
-    }
-    
-    // 10秒後自動關閉彈窗
-    popupTimeout = setTimeout(function () {
-        overlay.classList.remove("show");
-    }, 10000);
-}
-
-
-var lastMessageContent = null;
+var lastTopMessage = null;
 var firstMessageLoad = true;
 
 function fetchLatestMessage() {
     if (typeof SUPABASE_URL === "undefined") return;
 
-    var url = SUPABASE_URL + "/rest/v1/messages?select=content,created_at&order=created_at.desc&limit=1";
+    // 將 limit=1 改為 limit=4，一次抓取最新 4 條留言
+    var url = SUPABASE_URL + "/rest/v1/messages?select=content,created_at&order=created_at.desc&limit=4";
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url, true);
     xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
@@ -109,23 +89,30 @@ function fetchLatestMessage() {
             try {
                 var data = JSON.parse(xhr.responseText);
                 if (data && data.length > 0) {
-                    var content = data[0].content;
-                    if (content !== lastMessageContent) {
+                    var currentTopMessage = data[0].content;
+                    
+                    // 如果最新的一條留言跟上次紀錄的不同，代表有新留言進來
+                    if (currentTopMessage !== lastTopMessage) {
                         
-                        // 更新右下角的卡片文字
-                        document.getElementById("message").innerHTML = content;
+                        // 將 4 條留言組合為 HTML 列表
+                        var htmlList = "";
+                        for (var i = 0; i < data.length; i++) {
+                            htmlList += "<div class='msg-item'>💬 " + data[i].content + "</div>";
+                        }
+                        
+                        // 渲染到畫面上
+                        document.getElementById("message").innerHTML = htmlList;
                         
                         if (!firstMessageLoad) {
                             playDing();
-                            showPopup(content); // 觸發彈窗
                             
-                            // 卡片本身的閃爍動畫保留
+                            // 依然保留卡片閃爍動畫
                             var msgBox = document.querySelector(".message");
                             msgBox.classList.add("pulse");
                             setTimeout(function () { msgBox.classList.remove("pulse"); }, 800);
                         }
                         
-                        lastMessageContent = content;
+                        lastTopMessage = currentTopMessage;
                         firstMessageLoad = false;
                     }
                 }
@@ -141,4 +128,3 @@ fetchLatestMessage();
 setInterval(fetchLatestMessage, 5000);
 fetchWeather();
 setInterval(fetchWeather, 10 * 60 * 1000);
-
