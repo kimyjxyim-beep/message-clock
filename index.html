@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="時鐘看板">
 <title>Message Clock</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -27,29 +30,22 @@
             </div>
         </div>
 
-        <div class="date" id="date">
-            2026年7月9日 星期四
-        </div>
+        <div class="date" id="date">載入中...</div>
     </div>
 
     <div class="widget-section">
         
         <div class="left-col">
             <div class="card weather-card">
-                <div id="weather" class="weather-main">☀️ 广州 28°C</div>
-                <div class="weather-sub">💧 湿度 78% &nbsp;&nbsp; 🍃 AQI 25 优</div>
-            </div>
-
-            <div class="card reminder-card">
-                <div class="card-title">❤️ 今日提醒</div>
-                <div class="card-content">大宝 🌸🌸</div>
+                <div id="weather" class="weather-main">☀️ 广州 --°C</div>
+                <div class="weather-sub">💧 湿度 --% &nbsp;&nbsp; 🍃 AQI -- 优</div>
             </div>
         </div>
 
         <div class="right-col">
             <div class="card message">
-                <div class="card-title">👨‍👩‍👧 家庭留言</div>
-                <div class="card-content" id="message">目前没有新留言</div>
+                <div class="card-title">📝 留言板</div>
+                <div class="card-content" id="message">等待留言輸入...</div>
             </div>
         </div>
 
