@@ -229,8 +229,9 @@ function fetchLatestMessage() {
 updateClock();
 setInterval(updateClock, 1000);
 
+// 留言系統目前保持註解，若有配置 Supabase 再將下方兩行取消註解
 // fetchLatestMessage();
 // setInterval(fetchLatestMessage, 5000);
 
-// fetchWeather();
-// setInterval(fetchWeather, 10 * 60 * 1000);
+fetchWeather();
+setInterval(fetchWeather, 10 * 60 * 1000);
