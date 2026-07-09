@@ -108,9 +108,10 @@ function weatherCodeToInfo(code) {
 }
 
 function fetchWeather() {
-
+    // 加上 getTime() 產生時間戳，強制瀏覽器不使用快取
+    var timestamp = new Date().getTime();
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WEATHER_LAT +
-        "&longitude=" + WEATHER_LON + "&current_weather=true";
+        "&longitude=" + WEATHER_LON + "&current_weather=true&_t=" + timestamp;
 
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url, true);
@@ -234,4 +235,5 @@ setInterval(updateClock, 1000);
 // setInterval(fetchLatestMessage, 5000);
 
 fetchWeather();
+// 設定為每 10 分鐘 (10 * 60 * 1000 毫秒) 抓取一次天氣，可根據需求調整
 setInterval(fetchWeather, 10 * 60 * 1000);

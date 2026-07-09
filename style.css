@@ -55,7 +55,11 @@ body.theme-midnight{
 body::after{
     content:"";
     position:fixed;
-    inset:0;
+    /* 修正 inset 兼容性問題 */
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     pointer-events:none;
     transition:background 2s ease, opacity 2s ease;
     opacity:0;
@@ -101,11 +105,15 @@ body.weather-snow::after{
     justify-content:center;
 
     align-items:center;
-
-    gap:30px;
-
+    
+    /* 移除 gap，改在子元素使用 margin 處理兼容性 */
     margin-bottom:30px;
 
+}
+
+/* 針對 iOS 9 替代 gap 的寫法 */
+.clock > div {
+    margin: 0 15px;
 }
 
 .flip-card{
@@ -166,8 +174,12 @@ body.weather-snow::after{
 .number{
 
     position:absolute;
-
-    inset:0;
+    
+    /* 修正 inset 兼容性問題 */
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
 
     display:flex;
 
