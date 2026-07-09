@@ -80,7 +80,7 @@ function updateBackground(hour) {
     }
 }
 
-// ========== 真实天气(Open-Meteo,免费无需Key) ==========
+// ========== 真实天气(Open-Meteo, 恢复 HTTPS + 时间戳防缓存) ==========
 var WEATHER_LAT = 23.13;
 var WEATHER_LON = 113.26;
 var WEATHER_CITY_NAME = "广州";
@@ -108,8 +108,9 @@ function weatherCodeToInfo(code) {
 }
 
 function fetchWeather() {
-    // 加上 getTime() 產生時間戳，強制瀏覽器不使用快取
     var timestamp = new Date().getTime();
+    
+    // 使用正常的 https，並加上時間戳確保每次抓取最新資料
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WEATHER_LAT +
         "&longitude=" + WEATHER_LON + "&current_weather=true&_t=" + timestamp;
 
@@ -235,5 +236,5 @@ setInterval(updateClock, 1000);
 // setInterval(fetchLatestMessage, 5000);
 
 fetchWeather();
-// 設定為每 10 分鐘 (10 * 60 * 1000 毫秒) 抓取一次天氣，可根據需求調整
+// 設定為每 10 分鐘抓取一次天氣
 setInterval(fetchWeather, 10 * 60 * 1000);
