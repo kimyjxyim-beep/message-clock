@@ -1,15 +1,11 @@
-// ========== 初始化 Supabase ==========
-let supabaseClient = null;
-if (typeof supabase !== "undefined" && SUPABASE_URL.indexOf("YOUR-PROJECT-ID") === -1) {
-    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
+// ========== 老 iPad 兼容说明 ==========
+// 本文件全部使用 ES5 语法(var / function / XMLHttpRequest)
+// 禁止使用: const, let, 箭头函数, async/await, fetch, Promise.then 链式写法
+// 目标设备: iPad mini 1 / iOS 9.3.5 / 老版本 Safari
 
 // ========== 时钟 ==========
-let lastHour = null;
-let lastMinute = null;
 
 function flipUpdate(el, newValue) {
-    // 如果数字变了,加一个翻页动效
     if (el.innerHTML !== newValue) {
         el.classList.add("flip");
         setTimeout(function () {
@@ -49,8 +45,8 @@ function updateClock() {
 }
 
 // ========== 背景随时间变化 + 天气叠加 ==========
-let currentTimeTheme = null;
-let currentWeatherTheme = null;
+var currentTimeTheme = null;
+var currentWeatherTheme = null;
 
 function applyBodyClass() {
     var body = document.body;
@@ -85,13 +81,11 @@ function updateBackground(hour) {
 }
 
 // ========== 真实天气(Open-Meteo,免费无需Key) ==========
-// 默认坐标是广州,如果人在别的城市,改这两个数字就行
 var WEATHER_LAT = 23.13;
 var WEATHER_LON = 113.26;
 var WEATHER_CITY_NAME = "广州";
 
 function weatherCodeToInfo(code) {
-    // WMO 天气码简化映射
     if (code === 0 || code === 1) {
         return { emoji: "☀️", theme: "sunny" };
     }
@@ -113,36 +107,50 @@ function weatherCodeToInfo(code) {
     return { emoji: "☁️", theme: "cloudy" };
 }
 
-async function fetchWeather() {
-    try {
-        var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WEATHER_LAT +
-            "&longitude=" + WEATHER_LON + "&current_weather=true";
+function fetchWeather() {
 
-        var res = await fetch(url);
-        var data = await res.json();
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WEATHER_LAT +
+        "&longitude=" + WEATHER_LON + "&current_weather=true";
 
-        if (data && data.current_weather) {
-            var temp = Math.round(data.current_weather.temperature);
-            var code = data.current_weather.weathercode;
-            var info = weatherCodeToInfo(code);
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
 
-            document.getElementById("weather").innerHTML =
-                info.emoji + " " + WEATHER_CITY_NAME + " " + temp + "°C";
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
 
-            if (currentWeatherTheme !== info.theme) {
-                currentWeatherTheme = info.theme;
-                applyBodyClass();
+                    if (data && data.current_weather) {
+                        var temp = Math.round(data.current_weather.temperature);
+                        var code = data.current_weather.weathercode;
+                        var info = weatherCodeToInfo(code);
+
+                        document.getElementById("weather").innerHTML =
+                            info.emoji + " " + WEATHER_CITY_NAME + " " + temp + "°C";
+
+                        if (currentWeatherTheme !== info.theme) {
+                            currentWeatherTheme = info.theme;
+                            applyBodyClass();
+                        }
+                    }
+                } catch (e) {
+                    console.log("解析天气数据失败:", e);
+                }
+            } else {
+                console.log("获取天气失败,状态码:", xhr.status);
             }
         }
-    } catch (e) {
-        console.log("获取天气失败:", e);
-    }
+    };
+
+    xhr.send();
 }
 
 // ========== 提示音(用 Web Audio 合成,不依赖外部文件) ==========
 function playDing() {
     try {
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        var ctx = new AudioCtx();
         var osc = ctx.createOscillator();
         var gain = ctx.createGain();
 
@@ -158,58 +166,63 @@ function playDing() {
         osc.start();
         osc.stop(ctx.currentTime + 0.6);
     } catch (e) {
-        // 老 iPad 上 Web Audio 可能受限,静默失败即可
         console.log("播放提示音失败:", e);
     }
 }
 
-// ========== 留言系统 ==========
-let lastMessageContent = null;
-let firstMessageLoad = true;
+// ========== 留言系统(直接调用 Supabase REST API,不用官方JS库) ==========
+var lastMessageContent = null;
+var firstMessageLoad = true;
 
-async function fetchLatestMessage() {
+function fetchLatestMessage() {
 
-    if (!supabaseClient) {
-        // 没配置 Supabase 时,保底显示提示
+    if (typeof SUPABASE_URL === "undefined" || SUPABASE_URL.indexOf("YOUR-PROJECT-ID") !== -1) {
         document.getElementById("message").innerHTML = "请先在 config.js 里配置 Supabase";
         return;
     }
 
-    try {
-        const { data, error } = await supabaseClient
-            .from("messages")
-            .select("content, created_at")
-            .order("created_at", { ascending: false })
-            .limit(1);
+    var url = SUPABASE_URL + "/rest/v1/messages?select=content,created_at&order=created_at.desc&limit=1";
 
-        if (error) {
-            console.log("获取留言出错:", error);
-            return;
-        }
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
+    xhr.setRequestHeader("Authorization", "Bearer " + SUPABASE_ANON_KEY);
 
-        if (data && data.length > 0) {
-            var content = data[0].content;
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
 
-            if (content !== lastMessageContent) {
-                document.getElementById("message").innerHTML = content;
+                    if (data && data.length > 0) {
+                        var content = data[0].content;
 
-                // 第一次加载不响铃,只有后续内容变化才响
-                if (!firstMessageLoad) {
-                    playDing();
-                    var msgBox = document.querySelector(".message");
-                    msgBox.classList.add("pulse");
-                    setTimeout(function () {
-                        msgBox.classList.remove("pulse");
-                    }, 800);
+                        if (content !== lastMessageContent) {
+                            document.getElementById("message").innerHTML = content;
+
+                            if (!firstMessageLoad) {
+                                playDing();
+                                var msgBox = document.querySelector(".message");
+                                msgBox.classList.add("pulse");
+                                setTimeout(function () {
+                                    msgBox.classList.remove("pulse");
+                                }, 800);
+                            }
+
+                            lastMessageContent = content;
+                            firstMessageLoad = false;
+                        }
+                    }
+                } catch (e) {
+                    console.log("解析留言数据失败:", e);
                 }
-
-                lastMessageContent = content;
-                firstMessageLoad = false;
+            } else {
+                console.log("获取留言失败,状态码:", xhr.status);
             }
         }
-    } catch (e) {
-        console.log("留言请求异常:", e);
-    }
+    };
+
+    xhr.send();
 }
 
 // ========== 启动 ==========
@@ -217,7 +230,7 @@ updateClock();
 setInterval(updateClock, 1000);
 
 fetchLatestMessage();
-setInterval(fetchLatestMessage, 5000); // 每5秒查一次新留言
+setInterval(fetchLatestMessage, 5000);
 
 fetchWeather();
-setInterval(fetchWeather, 10 * 60 * 1000); // 每10分钟刷新一次天气
+setInterval(fetchWeather, 10 * 60 * 1000);
