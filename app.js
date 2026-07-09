@@ -80,7 +80,7 @@ function updateBackground(hour) {
     }
 }
 
-// ========== 真实天气(Open-Meteo, 恢复标准 HTTPS 避免报错) ==========
+// ========== 真实天气(Open-Meteo,免费无需Key) ==========
 var WEATHER_LAT = 23.13;
 var WEATHER_LON = 113.26;
 var WEATHER_CITY_NAME = "广州";
@@ -229,10 +229,8 @@ function fetchLatestMessage() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// 留言系統已開啟，每 5 秒同步一次最新留言
 fetchLatestMessage();
 setInterval(fetchLatestMessage, 5000);
 
 fetchWeather();
-// 設定為每 10 分鐘抓取一次天氣
 setInterval(fetchWeather, 10 * 60 * 1000);
