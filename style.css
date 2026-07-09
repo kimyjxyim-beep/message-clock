@@ -178,10 +178,25 @@ body {
 }
 
 .card-content {
-    font-size: 22px;
-    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 留言列表樣式 */
+.msg-item {
+    font-size: 18px;
+    font-weight: 400;
     line-height: 1.5;
     color: #ffffff;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.msg-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
 
 .message.pulse {
@@ -195,8 +210,8 @@ body {
 ==================== */
 @media (max-width: 768px) {
     body {
-        align-items: center; /* 手機端垂直置中 */
-        overflow-y: auto; /* 允許手機端上下滑動 */
+        align-items: center;
+        overflow-y: auto; 
     }
     .container {
         margin-top: 4vh;
@@ -213,7 +228,7 @@ body {
         border-radius: 20px;
     }
     .number {
-        font-size: 120px; /* 縮小數字避免溢出 */
+        font-size: 120px; 
         letter-spacing: -4px;
     }
     .colon {
@@ -224,14 +239,14 @@ body {
         font-size: 20px;
     }
     .widget-section {
-        flex-direction: column; /* 將左右雙欄改為上下堆疊 */
+        flex-direction: column; 
         align-items: center;
     }
     .left-col, .right-col {
         width: 100%;
     }
     .left-col {
-        margin-bottom: 16px; /* 增加上下卡片間距 */
+        margin-bottom: 16px; 
     }
     .card {
         padding: 20px;
@@ -240,7 +255,7 @@ body {
     .weather-main {
         font-size: 28px;
     }
-    .card-content {
-        font-size: 18px;
+    .msg-item {
+        font-size: 16px; /* 手機端字體微調 */
     }
 }
