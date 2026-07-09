@@ -71,6 +71,27 @@ function playDing() {
     } catch (e) {}
 }
 
+// 彈窗控制邏輯
+var popupTimeout = null;
+function showPopup(text) {
+    var overlay = document.getElementById("popup-overlay");
+    var popupText = document.getElementById("popup-text");
+    
+    popupText.innerHTML = text;
+    overlay.classList.add("show");
+
+    // 清除上一次的計時器，避免連續發留言時提早關閉
+    if (popupTimeout) {
+        clearTimeout(popupTimeout);
+    }
+    
+    // 10秒後自動關閉彈窗
+    popupTimeout = setTimeout(function () {
+        overlay.classList.remove("show");
+    }, 10000);
+}
+
+
 var lastMessageContent = null;
 var firstMessageLoad = true;
 
@@ -90,13 +111,20 @@ function fetchLatestMessage() {
                 if (data && data.length > 0) {
                     var content = data[0].content;
                     if (content !== lastMessageContent) {
+                        
+                        // 更新右下角的卡片文字
                         document.getElementById("message").innerHTML = content;
+                        
                         if (!firstMessageLoad) {
                             playDing();
+                            showPopup(content); // 觸發彈窗
+                            
+                            // 卡片本身的閃爍動畫保留
                             var msgBox = document.querySelector(".message");
                             msgBox.classList.add("pulse");
                             setTimeout(function () { msgBox.classList.remove("pulse"); }, 800);
                         }
+                        
                         lastMessageContent = content;
                         firstMessageLoad = false;
                     }
@@ -113,3 +141,4 @@ fetchLatestMessage();
 setInterval(fetchLatestMessage, 5000);
 fetchWeather();
 setInterval(fetchWeather, 10 * 60 * 1000);
+
