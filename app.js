@@ -229,8 +229,8 @@ function fetchLatestMessage() {
 updateClock();
 setInterval(updateClock, 1000);
 
-fetchLatestMessage();
-setInterval(fetchLatestMessage, 5000);
+// fetchLatestMessage();
+// setInterval(fetchLatestMessage, 5000);
 
-fetchWeather();
-setInterval(fetchWeather, 10 * 60 * 1000);
+// fetchWeather();
+// setInterval(fetchWeather, 10 * 60 * 1000);
