@@ -189,3 +189,58 @@ body {
     transform: scale(1.02);
     transition: background 0.5s ease, transform 0.3s ease;
 }
+
+/* ====================
+   響應式設計 (自動適配手機螢幕)
+==================== */
+@media (max-width: 768px) {
+    body {
+        align-items: center; /* 手機端垂直置中 */
+        overflow-y: auto; /* 允許手機端上下滑動 */
+    }
+    .container {
+        margin-top: 4vh;
+        margin-bottom: 4vh;
+    }
+    .header-section {
+        margin-bottom: 30px;
+    }
+    .flip-card {
+        width: 38vw;
+        max-width: 160px;
+        height: 42vw;
+        max-height: 180px;
+        border-radius: 20px;
+    }
+    .number {
+        font-size: 120px; /* 縮小數字避免溢出 */
+        letter-spacing: -4px;
+    }
+    .colon {
+        font-size: 50px;
+        transform: translateY(-4px);
+    }
+    .date {
+        font-size: 20px;
+    }
+    .widget-section {
+        flex-direction: column; /* 將左右雙欄改為上下堆疊 */
+        align-items: center;
+    }
+    .left-col, .right-col {
+        width: 100%;
+    }
+    .left-col {
+        margin-bottom: 16px; /* 增加上下卡片間距 */
+    }
+    .card {
+        padding: 20px;
+        border-radius: 20px;
+    }
+    .weather-main {
+        font-size: 28px;
+    }
+    .card-content {
+        font-size: 18px;
+    }
+}
