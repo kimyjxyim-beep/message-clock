@@ -1,233 +1,142 @@
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    color:#fff;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-    overflow:hidden;
-    background:linear-gradient(180deg,#141E30,#243B55);
-    background-size:400% 400%;
-    animation:bgMove 25s ease infinite;
-    transition:background 3s ease;
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    /* 改為 flex-start 方便控制整體下移比例 */
+    align-items: flex-start;
+    min-height: 100vh;
+    overflow: hidden;
+    /* 更換為深色沉穩漸層，模擬 Apple 暗色模式背景 */
+    background: linear-gradient(135deg, #1c1c1e 0%, #000000 100%);
 }
 
-/* ===== 时间段主题背景 ===== */
-
-body.theme-sunrise{
-    background:linear-gradient(180deg,#FF9A56,#FFAD84,#FFD9A0);
+.container {
+    width: 92%;
+    max-width: 1024px;
+    /* 控制頂部留白，讓整體視覺重心稍微下移但不過度 */
+    margin-top: 12vh; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-body.theme-day{
-    background:linear-gradient(180deg,#4facfe,#00c6ff,#67d3ff);
+/* ====================
+   第一階段：時鐘與日期
+==================== */
+
+.header-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 60px; /* 留出與下方卡片的呼吸空間 */
 }
 
-body.theme-sunset{
-    background:linear-gradient(180deg,#FF6B6B,#F06595,#845EC2);
+.clock {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 24px;
+    width: 100%;
 }
 
-body.theme-night{
-    background:linear-gradient(180deg,#141E30,#243B55);
-}
-
-body.theme-midnight{
-    background:linear-gradient(180deg,#0f0c29,#302b63,#24243e);
-}
-
-/* ===== 天气叠加效果(在时间背景基础上加一层色调) ===== */
-
-body::after{
-    content:"";
-    position:fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    pointer-events:none;
-    transition:background 2s ease, opacity 2s ease;
-    opacity:0;
-    z-index:0;
-}
-
-body.weather-sunny::after{
-    background:radial-gradient(circle at 50% 20%, rgba(255,220,120,.25), transparent 60%);
-    opacity:1;
-}
-
-body.weather-cloudy::after{
-    background:linear-gradient(180deg, rgba(180,190,200,.2), transparent);
-    opacity:1;
-}
-
-body.weather-rain::after{
-    background:linear-gradient(180deg, rgba(40,60,90,.35), rgba(20,30,50,.15));
-    opacity:1;
-}
-
-body.weather-snow::after{
-    background:linear-gradient(180deg, rgba(255,255,255,.25), transparent);
-    opacity:1;
-}
-
-.container{
-    position:relative;
-    z-index:1;
-    width:90%;
-    max-width:900px;
-    text-align:center;
-}
-
-.clock{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    margin-bottom:30px;
-}
-
-/* 針對 iOS 9 替代 gap 的寫法 */
 .clock > div {
-    margin: 0 15px;
+    margin: 0 8px; /* 縮小卡片與冒號的間距 */
 }
 
-.flip-card{
-    /* 再次加寬加高外框尺寸 */
-    width: 320px; 
-    height: 350px; 
-    border-radius:28px;
-    background:rgba(255,255,255,.08);
-    backdrop-filter:blur(20px);
-    -webkit-backdrop-filter:blur(20px);
-    position:relative;
-    overflow:hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,.35);
-    perspective:600px;
-    -webkit-perspective: 600px;
+.flip-card {
+    /* 放大卡片尺寸，使其佔據更大的視覺比例 */
+    width: 38vw;
+    max-width: 360px; 
+    height: 42vw;
+    max-height: 400px;
+    border-radius: 32px;
+    /* 顏色改為深灰透黑，更符合高級感 */
+    background: rgba(40, 40, 42, 0.85);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    perspective: 800px;
+    -webkit-perspective: 800px;
 }
 
-.top{
-    position:absolute;
-    top:0;
-    left:0;
-    width:100%;
-    height:50%;
-    border-bottom: 2px solid rgba(0, 0, 0, 0.4);
-    box-shadow: inset 0 -4px 10px rgba(0, 0, 0, 0.15);
+.top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    /* 分割線改為極細的暗色，模擬精密的機械感 */
+    border-bottom: 2px solid rgba(0, 0, 0, 0.6);
+    box-shadow: inset 0 -8px 20px rgba(0, 0, 0, 0.2);
 }
 
-.bottom{
-    position:absolute;
-    bottom:0;
-    left:0;
-    width:100%;
-    height:50%;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+.bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.number{
-    position:absolute;
+.number {
+    position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
     left: 0;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    /* 將字體調整到絕對安全的尺寸 */
-    font-size:210px; 
-    font-weight:700;
-    letter-spacing:-8px;
-    -webkit-transition:-webkit-transform .15s ease-in, opacity .15s ease-in;
-    transition:transform .15s ease-in, opacity .15s ease-in;
-    -webkit-transform-origin:center;
-    transform-origin:center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* 字體大幅放大，減輕字重以提升現代感 */
+    font-size: 280px; 
+    font-weight: 500;
+    letter-spacing: -6px;
+    color: #f5f5f7;
+    -webkit-transition: -webkit-transform .2s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease-in;
+    transition: transform .2s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease-in;
+    -webkit-transform-origin: center;
+    transform-origin: center;
 }
 
-/* 翻页动效: 沿 X 轴翻转 90 度模拟折叠效果 */
-.number.flip{
-    -webkit-transform: rotateX(90deg);
-    transform: rotateX(90deg);
+/* 翻頁動效優化，加入一點 z 軸視角 */
+.number.flip {
+    -webkit-transform: rotateX(90deg) scale(0.95);
+    transform: rotateX(90deg) scale(0.95);
     opacity: 0;
 }
 
-.colon{
-    font-size:120px;
-    font-weight:bold;
+.colon {
+    /* 縮小冒號，降低不必要的視覺干擾 */
+    font-size: 80px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.4);
+    transform: translateY(-8px); /* 視覺微調對齊 */
 }
 
-.date{
-    margin-top:20px;
-    font-size:38px;
-    opacity:.85;
+.date {
+    /* 日期字體縮小，克制且高級 */
+    font-size: 28px;
+    font-weight: 400;
+    color: rgba(235, 235, 245, 0.6); /* Apple 標準次要文字顏色 */
+    letter-spacing: 2px;
 }
 
-.weather{
-    margin-top:16px;
-    font-size:32px;
-    opacity:.95;
-}
-
-.message{
-    margin-top:50px;
-    padding:30px;
-    border-radius:25px;
-    background:rgba(255,255,255,.08);
-    backdrop-filter:blur(20px);
-    -webkit-backdrop-filter:blur(20px);
-    transition:background .5s ease, transform .3s ease;
-}
-
-.message.pulse{
-    background:rgba(255,128,128,.25);
-    transform:scale(1.03);
-}
-
-.message-title{
-    font-size:24px;
-    color:#ff8080;
-    margin-bottom:15px;
-}
-
-#message{
-    font-size:50px;
-    font-weight:700;
-}
-
-@keyframes bgMove{
-    0%{
-        background-position:0% 50%;
-    }
-    50%{
-        background-position:100% 50%;
-    }
-    100%{
-        background-position:0% 50%;
-    }
-}
-
-@media(max-width:900px){
-    .flip-card{
-        width:220px;
-        height:260px;
-    }
-    .number{
-        font-size:150px;
-    }
-    .colon{
-        font-size:80px;
-    }
-    .date{
-        font-size:28px;
-    }
-    .weather{
-        font-size:24px;
-    }
-    #message{
-        font-size:36px;
-    }
+/* ====================
+   待優化的下半部區域 (維持基本顯示)
+==================== */
+.widget-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0.5; /* 暫時降低透明度，讓我們專注於時鐘 */
 }

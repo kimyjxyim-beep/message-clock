@@ -4,50 +4,43 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Message Clock</title>
-
 <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
 
 <div class="container">
-
-    <div class="clock">
-
-        <div class="flip-card" id="hour-card">
-            <div class="top"></div>
-            <div class="number" id="hour">12</div>
-            <div class="bottom"></div>
+    
+    <div class="header-section">
+        <div class="clock">
+            <div class="flip-card" id="hour-card">
+                <div class="top"></div>
+                <div class="number" id="hour">20</div>
+                <div class="bottom"></div>
+            </div>
+            
+            <div class="colon">:</div>
+            
+            <div class="flip-card" id="minute-card">
+                <div class="top"></div>
+                <div class="number" id="minute">03</div>
+                <div class="bottom"></div>
+            </div>
         </div>
 
-        <div class="colon">:</div>
-
-        <div class="flip-card" id="minute-card">
-            <div class="top"></div>
-            <div class="number" id="minute">00</div>
-            <div class="bottom"></div>
+        <div class="date" id="date">
+            2026年7月9日 星期四
         </div>
-
     </div>
 
-    <div class="date" id="date">
-        2026年7月8日 星期三
-    </div>
-
-    <div class="weather" id="weather">
-        ☀️ 广州 30°C
-    </div>
-
-    <div class="message">
-
-        <div class="message-title">
-            ❤️ 今日提醒
+    <div class="widget-section">
+        <div class="weather" id="weather">
+            ☀️ 广州 28°C
         </div>
 
-        <div id="message">
-            欢迎回家
+        <div class="message">
+            <div class="message-title">❤️ 今日提醒</div>
+            <div id="message">下午記得帶 Owen 出門，回來順便拿網購的貓糧。</div>
         </div>
-
     </div>
 
 </div>
