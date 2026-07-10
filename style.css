@@ -55,71 +55,124 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 }
 
 /* ====================
-   電腦端 (大螢幕預設尺寸)
+   電腦端 (大螢幕預設尺寸) — 真機械 Split-Flap
 ==================== */
 .flip-card {
     width: 390px;
     height: 430px;
     border-radius: 32px;
-    background: rgba(40, 40, 42, 0.85);
     position: relative;
+    background: transparent;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+    /* 3D 透視深度，讓翻頁有真實厚度感 */
+    perspective: 1400px;
+    -webkit-perspective: 1400px;
+}
+
+/* 靜態上下兩頁 - 顯示「目前」的數字 */
+.card-half {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 50%;
     overflow: hidden;
-    box-shadow: 0 24px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-    /* 增加 3D 透視深度，讓翻頁更立體 */
-    perspective: 1200px;
-    -webkit-perspective: 1200px;
+    background: rgba(40, 40, 42, 0.9);
+}
+.card-half.top {
+    top: 0;
+    border-radius: 32px 32px 0 0;
+    border-bottom: 1px solid rgba(0,0,0,0.9);
+    box-shadow: inset 0 -14px 22px rgba(0,0,0,0.35);
+}
+.card-half.bottom {
+    bottom: 0;
+    border-radius: 0 0 32px 32px;
+    box-shadow: inset 0 14px 18px rgba(0,0,0,0.25);
 }
 
-.top {
+/* 翻頁活頁 - 前頁（上半，會往下翻走）／後頁（下半，會翻進來） */
+.leaf {
     position: absolute;
-    top: 0;
     left: 0;
     width: 100%;
     height: 50%;
-    border-bottom: 2px solid rgba(0, 0, 0, 0.7);
-    box-shadow: inset 0 -12px 25px rgba(0, 0, 0, 0.3);
-    z-index: 2;
+    overflow: hidden;
+    background: rgba(46, 46, 48, 0.95);
+    z-index: 5;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-transition: -webkit-transform 0.22s cubic-bezier(0.4, 0, 0.7, 1);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.7, 1);
 }
-
-.bottom {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 50%;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.number {
-    position: absolute;
+.leaf.front {
     top: 0;
-    right: 0;
+    border-radius: 32px 32px 0 0;
+    border-bottom: 1px solid rgba(0,0,0,0.9);
+    -webkit-transform-origin: bottom center;
+    transform-origin: bottom center;
+    -webkit-transform: rotateX(0deg);
+    transform: rotateX(0deg);
+    box-shadow: inset 0 -14px 22px rgba(0,0,0,0.35);
+}
+.leaf.back {
     bottom: 0;
-    left: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 280px; 
-    font-weight: 500;
-    letter-spacing: -6px;
-    color: #f5f5f7;
-    /* 復位時的動畫（俐落彈回） */
-    -webkit-transition: -webkit-transform 0.15s cubic-bezier(0, 0, 0.2, 1), opacity 0.15s;
-    transition: transform 0.15s cubic-bezier(0, 0, 0.2, 1), opacity 0.15s;
-    -webkit-transform-origin: center;
-    transform-origin: center;
+    border-radius: 0 0 32px 32px;
+    -webkit-transform-origin: top center;
+    transform-origin: top center;
+    -webkit-transform: rotateX(90deg);
+    transform: rotateX(90deg);
+    box-shadow: inset 0 14px 18px rgba(0,0,0,0.25);
+    -webkit-transition-delay: 0.2s;
+    transition-delay: 0.2s;
+}
+
+/* 觸發翻頁動畫 */
+.flip-card.flip .leaf.front {
+    -webkit-transform: rotateX(-90deg);
+    transform: rotateX(-90deg);
+}
+.flip-card.flip .leaf.back {
     -webkit-transform: rotateX(0deg);
     transform: rotateX(0deg);
 }
 
-.number.flip {
-    /* 觸發翻頁：模擬重力往下傾倒 (rotateX -90deg)，並帶有微縮放 */
-    -webkit-transform: rotateX(-90deg) scale(0.95);
-    transform: rotateX(-90deg) scale(0.95);
-    opacity: 0;
-    /* 掉落時的動畫（帶有重量感的加速下墜） */
-    -webkit-transition: -webkit-transform 0.15s cubic-bezier(0.4, 0, 1, 1), opacity 0.1s;
-    transition: transform 0.15s cubic-bezier(0.4, 0, 1, 1), opacity 0.1s;
+/* 復位時瞬間跳回（不觸發過渡動畫），避免殘影/跳動 */
+.flip-card.no-anim .leaf {
+    -webkit-transition: none !important;
+    transition: none !important;
+}
+
+/* 數字本體：用「整卡高度置中」再各自被 50% 窗口裁切，確保上下對齊 */
+.card-half .num,
+.leaf .num {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 430px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 280px;
+    font-weight: 500;
+    letter-spacing: -6px;
+    color: #f5f5f7;
+}
+.card-half.top .num,
+.leaf.front .num { top: 0; }
+.card-half.bottom .num,
+.leaf.back .num { top: -215px; }
+
+/* 中央鉸鏈線，增加機械質感 */
+.hinge {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 2px;
+    background: rgba(0,0,0,0.6);
+    transform: translateY(-1px);
+    z-index: 6;
+    pointer-events: none;
 }
 
 .colon {
@@ -196,8 +249,16 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
         max-width: 390px;
         max-height: 430px;
     }
-    .number {
-        font-size: 28vw; 
+    .card-half .num,
+    .leaf .num {
+        height: 44vw;
+        max-height: 430px;
+        font-size: 28vw;
+    }
+    .card-half.bottom .num,
+    .leaf.back .num {
+        top: -22vw;
+        max-height: 430px;
     }
     .colon {
         font-size: 70px;
@@ -220,9 +281,22 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
         max-width: 200px;
         max-height: 220px;
     }
-    .number {
-        font-size: 32vw; 
+    .card-half.top, .card-half.bottom, .leaf.front, .leaf.back {
+        border-radius: 0;
+    }
+    .card-half.top, .leaf.front { border-radius: 20px 20px 0 0; }
+    .card-half.bottom, .leaf.back { border-radius: 0 0 20px 20px; }
+    .card-half .num,
+    .leaf .num {
+        height: 48vw;
+        max-height: 220px;
+        font-size: 32vw;
         letter-spacing: -2px;
+    }
+    .card-half.bottom .num,
+    .leaf.back .num {
+        top: -24vw;
+        max-height: 220px;
     }
     .colon {
         font-size: 50px;

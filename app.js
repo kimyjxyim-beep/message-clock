@@ -1,9 +1,31 @@
-function flipUpdate(el, newValue) {
-    if (el.innerHTML !== newValue) {
-        el.classList.add("flip");
-        setTimeout(function () { el.innerHTML = newValue; }, 150);
-        setTimeout(function () { el.classList.remove("flip"); }, 300);
-    }
+function flipUpdate(prefix, newValue) {
+    var card = document.getElementById(prefix + "-card");
+    var topNum = document.getElementById(prefix + "-top-num");
+    var bottomNum = document.getElementById(prefix + "-bottom-num");
+    var frontNum = document.getElementById(prefix + "-front-num");
+    var backNum = document.getElementById(prefix + "-back-num");
+
+    if (!card || topNum.innerHTML === newValue) return;
+
+    // 前頁（翻走的那一半）先顯示舊值，後頁（翻進來的那一半）先放好新值
+    frontNum.innerHTML = topNum.innerHTML;
+    backNum.innerHTML = newValue;
+
+    // 上半靜態頁可以立刻換成新值，因為此刻完全被前頁蓋住，不會看到跳動
+    topNum.innerHTML = newValue;
+
+    // 觸發翻頁：前頁往下倒下 0deg -> -90deg，後頁延遲後 90deg -> 0deg 翻入定位
+    card.classList.add("flip");
+
+    // 動畫結束（前頁 0.22s + 後頁延遲 0.2s + 0.22s ≈ 0.42s）後收尾
+    setTimeout(function () {
+        bottomNum.innerHTML = newValue;   // 此刻被後頁完全蓋住，不會看到跳動
+        card.classList.add("no-anim");    // 瞬間復位，不要有動畫
+        card.classList.remove("flip");
+        frontNum.innerHTML = newValue;    // 前頁復位後應與新值一致
+        void card.offsetWidth;            // 強制 reflow
+        card.classList.remove("no-anim");
+    }, 430);
 }
 
 function updateTheme(hour) {
@@ -34,8 +56,8 @@ function updateClock() {
     var hourStr = (hour < 10 ? "0" + hour : "" + hour);
     var minuteStr = (minute < 10 ? "0" + minute : "" + minute);
 
-    flipUpdate(document.getElementById("hour"), hourStr);
-    flipUpdate(document.getElementById("minute"), minuteStr);
+    flipUpdate("hour", hourStr);
+    flipUpdate("minute", minuteStr);
     
     // 每次更新時間時，檢查並切換背景主題
     updateTheme(hour);
