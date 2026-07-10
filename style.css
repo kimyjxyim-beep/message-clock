@@ -12,7 +12,28 @@ body {
     align-items: flex-start;
     min-height: 100vh;
     overflow: hidden;
-    background: linear-gradient(135deg, #1c1c1e 0%, #000000 100%);
+    /* 加入背景漸變的過渡動畫 */
+    transition: background 2s ease;
+    background: #1c1c1e; /* 預設底色 */
+}
+
+/* ====================
+   時間段主題背景 (Apple 質感低飽和漸層)
+==================== */
+body.theme-sunrise {
+    background: linear-gradient(135deg, #2b4162 0%, #fa9c7a 100%);
+}
+body.theme-day {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+}
+body.theme-sunset {
+    background: linear-gradient(135deg, #2b203c 0%, #873652 100%);
+}
+body.theme-night {
+    background: linear-gradient(135deg, #141e30 0%, #243b55 100%);
+}
+body.theme-midnight {
+    background: linear-gradient(135deg, #000000 0%, #1c1c1e 100%);
 }
 
 .container {
@@ -90,15 +111,17 @@ body {
     font-weight: 500;
     letter-spacing: -6px;
     color: #f5f5f7;
-    -webkit-transition: -webkit-transform .2s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease-in;
-    transition: transform .2s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease-in;
+    /* 修正過渡動畫時間，配合 app.js 的 150ms 翻折 */
+    -webkit-transition: -webkit-transform 0.15s ease-in, opacity 0.15s ease-in;
+    transition: transform 0.15s ease-in, opacity 0.15s ease-in;
     -webkit-transform-origin: center;
     transform-origin: center;
 }
 
 .number.flip {
-    -webkit-transform: rotateX(90deg) scale(0.95);
-    transform: rotateX(90deg) scale(0.95);
+    /* 嚴格的 X 軸負向旋轉，模擬重力向下翻折的機械感 */
+    -webkit-transform: rotateX(-90deg);
+    transform: rotateX(-90deg);
     opacity: 0;
 }
 
@@ -182,7 +205,6 @@ body {
     flex-direction: column;
 }
 
-/* 留言列表樣式 */
 .msg-item {
     font-size: 18px;
     font-weight: 400;
@@ -256,6 +278,6 @@ body {
         font-size: 28px;
     }
     .msg-item {
-        font-size: 16px; /* 手機端字體微調 */
+        font-size: 16px; 
     }
 }
