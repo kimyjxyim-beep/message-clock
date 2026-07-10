@@ -12,34 +12,23 @@ body {
     align-items: flex-start;
     min-height: 100vh;
     overflow: hidden;
-    /* 加入背景漸變的過渡動畫 */
     transition: background 2s ease;
-    background: #1c1c1e; /* 預設底色 */
+    background: #1c1c1e;
 }
 
 /* ====================
    時間段主題背景 (Apple 質感低飽和漸層)
 ==================== */
-body.theme-sunrise {
-    background: linear-gradient(135deg, #2b4162 0%, #fa9c7a 100%);
-}
-body.theme-day {
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-}
-body.theme-sunset {
-    background: linear-gradient(135deg, #2b203c 0%, #873652 100%);
-}
-body.theme-night {
-    background: linear-gradient(135deg, #141e30 0%, #243b55 100%);
-}
-body.theme-midnight {
-    background: linear-gradient(135deg, #000000 0%, #1c1c1e 100%);
-}
+body.theme-sunrise { background: linear-gradient(135deg, #2b4162 0%, #fa9c7a 100%); }
+body.theme-day { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); }
+body.theme-sunset { background: linear-gradient(135deg, #2b203c 0%, #873652 100%); }
+body.theme-night { background: linear-gradient(135deg, #141e30 0%, #243b55 100%); }
+body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 100%); }
 
 .container {
-    width: 92%;
-    max-width: 900px;
-    margin-top: 8vh; 
+    width: 90%;
+    max-width: 1000px;
+    margin-top: 10vh; 
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -50,27 +39,26 @@ body.theme-midnight {
     flex-direction: column;
     align-items: center;
     width: 100%;
-    margin-bottom: 50px; 
+    margin-bottom: 60px; 
 }
 
 .clock {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
     width: 100%;
 }
 
 .clock > div {
-    margin: 0 8px;
+    margin: 0 12px;
 }
 
+/* 網頁版（PC）預設尺寸，解除過大的 vw 限制，設定適當的固定最大值 */
 .flip-card {
-    width: 38vw;
-    max-width: 350px; 
-    height: 40vw;
-    max-height: 380px;
-    border-radius: 32px;
+    width: 240px; 
+    height: 260px;
+    border-radius: 28px;
     background: rgba(40, 40, 42, 0.85);
     position: relative;
     overflow: hidden;
@@ -107,11 +95,10 @@ body.theme-midnight {
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 260px; 
+    font-size: 160px; /* 修正網頁版字體過大問題 */
     font-weight: 500;
-    letter-spacing: -6px;
+    letter-spacing: -4px;
     color: #f5f5f7;
-    /* 修正過渡動畫時間，配合 app.js 的 150ms 翻折 */
     -webkit-transition: -webkit-transform 0.15s ease-in, opacity 0.15s ease-in;
     transition: transform 0.15s ease-in, opacity 0.15s ease-in;
     -webkit-transform-origin: center;
@@ -119,7 +106,6 @@ body.theme-midnight {
 }
 
 .number.flip {
-    /* 嚴格的 X 軸負向旋轉，模擬重力向下翻折的機械感 */
     -webkit-transform: rotateX(-90deg);
     transform: rotateX(-90deg);
     opacity: 0;
@@ -133,28 +119,24 @@ body.theme-midnight {
 }
 
 .date {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 400;
     color: rgba(235, 235, 245, 0.6);
     letter-spacing: 2px;
 }
 
+/* 網頁版底部小工具區域，使用 Flexbox 與 Gap 控制比例 */
 .widget-section {
     width: 100%;
-    max-width: 850px; 
+    max-width: 800px; 
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 30px; 
     align-items: stretch;
 }
 
-.left-col {
-    width: 48%;
-    display: flex;
-    flex-direction: column;
-}
-
-.right-col {
-    width: 48%;
+.left-col, .right-col {
+    flex: 1; /* 讓兩欄在大螢幕平分空間 */
     display: flex;
     flex-direction: column;
 }
@@ -162,24 +144,21 @@ body.theme-midnight {
 .card {
     background: rgba(40, 40, 42, 0.6);
     border-radius: 24px;
-    padding: 24px;
+    padding: 28px;
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    height: 100%; /* 確保左右卡片等高 */
+}
+
+.weather-card, .message {
+    display: flex;
+    flex-direction: column;
 }
 
 .weather-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
     justify-content: center;
-}
-
-.message {
-    flex: 1; 
-    display: flex;
-    flex-direction: column;
 }
 
 .card-title {
@@ -190,13 +169,13 @@ body.theme-midnight {
 }
 
 .weather-main {
-    font-size: 32px;
+    font-size: 36px;
     font-weight: 500;
     margin-bottom: 8px;
 }
 
 .weather-sub {
-    font-size: 13px;
+    font-size: 14px;
     color: rgba(235, 235, 245, 0.5);
 }
 
@@ -208,7 +187,7 @@ body.theme-midnight {
 .msg-item {
     font-size: 18px;
     font-weight: 400;
-    line-height: 1.5;
+    line-height: 1.6;
     color: #ffffff;
     padding-bottom: 12px;
     margin-bottom: 12px;
@@ -228,51 +207,54 @@ body.theme-midnight {
 }
 
 /* ====================
-   響應式設計 (自動適配手機螢幕)
+   響應式設計 (自動適配手機/平板螢幕)
 ==================== */
 @media (max-width: 768px) {
     body {
-        align-items: center;
+        align-items: flex-start;
         overflow-y: auto; 
     }
     .container {
-        margin-top: 4vh;
-        margin-bottom: 4vh;
+        width: 92%;
+        margin-top: 5vh;
+        margin-bottom: 5vh;
     }
     .header-section {
         margin-bottom: 30px;
     }
+    .clock > div {
+        margin: 0 6px;
+    }
     .flip-card {
-        width: 38vw;
+        width: 40vw;
         max-width: 160px;
-        height: 42vw;
+        height: 44vw;
         max-height: 180px;
         border-radius: 20px;
     }
     .number {
-        font-size: 120px; 
-        letter-spacing: -4px;
+        font-size: 110px; 
+        letter-spacing: -3px;
     }
     .colon {
         font-size: 50px;
         transform: translateY(-4px);
     }
     .date {
-        font-size: 20px;
+        font-size: 18px;
     }
     .widget-section {
         flex-direction: column; 
-        align-items: center;
+        gap: 16px;
     }
     .left-col, .right-col {
         width: 100%;
-    }
-    .left-col {
-        margin-bottom: 16px; 
+        flex: none;
     }
     .card {
         padding: 20px;
         border-radius: 20px;
+        height: auto;
     }
     .weather-main {
         font-size: 28px;
