@@ -6,6 +6,27 @@ function flipUpdate(el, newValue) {
     }
 }
 
+function updateTheme(hour) {
+    var body = document.body;
+    var newTheme = "";
+    
+    if (hour >= 5 && hour < 8) {
+        newTheme = "theme-sunrise";
+    } else if (hour >= 8 && hour < 17) {
+        newTheme = "theme-day";
+    } else if (hour >= 17 && hour < 19) {
+        newTheme = "theme-sunset";
+    } else if (hour >= 19 && hour < 24) {
+        newTheme = "theme-night";
+    } else {
+        newTheme = "theme-midnight";
+    }
+
+    if (body.className !== newTheme) {
+        body.className = newTheme;
+    }
+}
+
 function updateClock() {
     var now = new Date();
     var hour = now.getHours();
@@ -15,6 +36,9 @@ function updateClock() {
 
     flipUpdate(document.getElementById("hour"), hourStr);
     flipUpdate(document.getElementById("minute"), minuteStr);
+    
+    // 每次更新時間時，檢查並切換背景主題
+    updateTheme(hour);
 
     var weekdays = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
     document.getElementById("date").innerHTML =
@@ -77,7 +101,6 @@ var firstMessageLoad = true;
 function fetchLatestMessage() {
     if (typeof SUPABASE_URL === "undefined") return;
 
-    // 將 limit=1 改為 limit=4，一次抓取最新 4 條留言
     var url = SUPABASE_URL + "/rest/v1/messages?select=content,created_at&order=created_at.desc&limit=4";
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url, true);
@@ -91,22 +114,16 @@ function fetchLatestMessage() {
                 if (data && data.length > 0) {
                     var currentTopMessage = data[0].content;
                     
-                    // 如果最新的一條留言跟上次紀錄的不同，代表有新留言進來
                     if (currentTopMessage !== lastTopMessage) {
-                        
-                        // 將 4 條留言組合為 HTML 列表
                         var htmlList = "";
                         for (var i = 0; i < data.length; i++) {
                             htmlList += "<div class='msg-item'>💬 " + data[i].content + "</div>";
                         }
                         
-                        // 渲染到畫面上
                         document.getElementById("message").innerHTML = htmlList;
                         
                         if (!firstMessageLoad) {
                             playDing();
-                            
-                            // 依然保留卡片閃爍動畫
                             var msgBox = document.querySelector(".message");
                             msgBox.classList.add("pulse");
                             setTimeout(function () { msgBox.classList.remove("pulse"); }, 800);
