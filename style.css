@@ -467,6 +467,42 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     }
 }
 
+/* iPad mini 1 / 舊版 iOS Safari：避免 absolute + flex + vw 的半頁取整誤差 */
+@media screen and (min-width: 700px) and (max-width: 800px) and (min-height: 900px) {
+    .flip-card {
+        width: 307px;
+        height: 338px;
+        min-width: 307px;
+        flex: 0 0 307px;
+    }
+    .card-half .num,
+    .leaf .num {
+        display: block;
+        height: 338px;
+        max-height: none;
+        font-size: 215px;
+        line-height: 338px;
+        text-align: center;
+    }
+    .card-half.bottom .num,
+    .leaf.back .num {
+        top: -169px;
+        max-height: none;
+    }
+    .colon {
+        flex: 0 0 auto;
+        font-size: 70px;
+    }
+}
+
+/* 1024px iPad 橫屏：44vw 已超過 430px 上限，下半頁必須跟隨 215px 半高 */
+@media screen and (min-width: 978px) and (max-width: 1024px) {
+    .card-half.bottom .num,
+    .leaf.back .num {
+        top: -215px;
+    }
+}
+
 /* ====================
    手機端 (動態佈滿空間，改為單行排列)
 ==================== */
