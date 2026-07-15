@@ -167,3 +167,64 @@ fetchLatestMessage();
 setInterval(fetchLatestMessage, 5000);
 fetchWeather();
 setInterval(fetchWeather, 10 * 60 * 1000);
+
+/* 金主：輕量互動與本機狀態 */
+(function initJinzhu() {
+    var cat = document.getElementById("jinzhu-cat");
+    var bubble = document.getElementById("jinzhu-bubble");
+    var panel = document.getElementById("jinzhu-panel");
+    if (!cat || !bubble || !panel) return;
+
+    var storageKey = "messageClockJinzhuState";
+    var state = { mood: 72, energy: 68, bond: 40 };
+    try {
+        var saved = JSON.parse(localStorage.getItem(storageKey));
+        if (saved) {
+            if (isFinite(Number(saved.mood))) state.mood = Number(saved.mood);
+            if (isFinite(Number(saved.energy))) state.energy = Number(saved.energy);
+            if (isFinite(Number(saved.bond))) state.bond = Number(saved.bond);
+        }
+    } catch (e) {}
+
+    var lines = ["今日有冇摸我？", "食齋食齋！！🌱🥬", "我唔系宠物，我系金主。", "你做嘢，我监督。"];
+    var actionLines = {
+        pet: ["摸多兩下都可以嘅。", "唔係我想你摸，係你手凍。"],
+        feed: ["菜菜放低，我自己食。🌱", "勉強合格，聽日繼續。"],
+        chat: ["你講，我有聽。", "今日做得點呀？我監督你。"]
+    };
+    var bubbleTimer;
+
+    function clamp(value) { return Math.max(0, Math.min(100, value)); }
+    function saveAndRender() {
+        state.mood = clamp(state.mood);
+        state.energy = clamp(state.energy);
+        state.bond = clamp(state.bond);
+        document.getElementById("jinzhu-mood").textContent = state.mood;
+        document.getElementById("jinzhu-energy").textContent = state.energy;
+        document.getElementById("jinzhu-bond").textContent = state.bond;
+        try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (e) {}
+    }
+    function say(text) {
+        bubble.textContent = text;
+        bubble.classList.add("show");
+        clearTimeout(bubbleTimer);
+        bubbleTimer = setTimeout(function () { bubble.classList.remove("show"); }, 3200);
+    }
+    function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+
+    cat.addEventListener("click", function () {
+        panel.hidden = !panel.hidden;
+        say(pick(lines));
+    });
+    panel.addEventListener("click", function (event) {
+        var button = event.target.closest("[data-jinzhu-action]");
+        if (!button) return;
+        var action = button.getAttribute("data-jinzhu-action");
+        if (action === "pet") { state.mood += 6; state.bond += 3; state.energy -= 1; }
+        if (action === "feed") { state.energy += 10; state.mood += 3; state.bond += 1; }
+        if (action === "chat") { state.bond += 5; state.mood += 2; state.energy -= 2; }
+        saveAndRender();
+        say(pick(actionLines[action]));
+    });
+    saveAndRender();
+})();

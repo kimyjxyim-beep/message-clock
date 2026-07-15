@@ -195,10 +195,10 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     display: flex;
     justify-content: space-between;
     align-items: stretch;
+    gap: 18px;
 }
 
-.left-col { width: 48%; display: flex; flex-direction: column; }
-.right-col { width: 48%; display: flex; flex-direction: column; }
+.left-col, .right-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 
 .card {
     background: rgba(58,58,60,.55);
@@ -238,6 +238,90 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     transform: scale(1.02);
     transition: background 0.5s ease, transform 0.3s ease;
 }
+
+/* 金主住在兩張卡片之間，不另外加大容器 */
+.jinzhu-home {
+    position: relative;
+    flex: 0 0 116px;
+    min-height: 142px;
+    align-self: flex-end;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-direction: column;
+    z-index: 8;
+}
+.jinzhu-cat {
+    width: 116px;
+    height: 116px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    filter: drop-shadow(0 9px 9px rgba(0, 0, 0, .38));
+    animation: jinzhu-breathe 3.8s ease-in-out infinite;
+}
+.jinzhu-cat img { width: 108px; height: 108px; object-fit: contain; display: block; margin: auto; }
+.jinzhu-cat:focus-visible { outline: 2px solid rgba(255,255,255,.75); outline-offset: 3px; }
+.jinzhu-cat:active { transform: scale(.96); }
+.jinzhu-bubble {
+    position: absolute;
+    left: 50%;
+    bottom: 122px;
+    width: max-content;
+    max-width: 210px;
+    padding: 9px 12px;
+    border-radius: 13px;
+    background: rgba(250,250,250,.94);
+    color: #1c1c1e;
+    font-size: 13px;
+    line-height: 1.35;
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    transform: translate(-50%, 6px) scale(.96);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+}
+.jinzhu-bubble::after {
+    content: "";
+    position: absolute;
+    left: 50%; bottom: -6px;
+    width: 12px; height: 12px;
+    background: rgba(250,250,250,.94);
+    transform: translateX(-50%) rotate(45deg);
+}
+.jinzhu-bubble.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.jinzhu-panel {
+    position: absolute;
+    left: 50%; top: calc(100% + 7px);
+    width: 224px;
+    padding: 11px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px;
+    background: rgba(38,38,40,.94);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 14px 34px rgba(0,0,0,.42);
+    transform: translateX(-50%);
+}
+.jinzhu-stats { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: rgba(235,235,245,.62); font-size: 11px; }
+.jinzhu-stats b { color: #fff; font-weight: 600; }
+.jinzhu-actions { display: flex; gap: 7px; }
+.jinzhu-actions button {
+    flex: 1;
+    padding: 7px 4px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px;
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+.jinzhu-actions button:active { background: rgba(255,255,255,.18); }
+@keyframes jinzhu-breathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) { .jinzhu-cat { animation: none; } }
 
 /* ====================
    iPad & 中等螢幕 (動態佈滿空間)
@@ -304,9 +388,15 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     }
     .date { font-size: 18px; }
 
-    .widget-section { flex-direction: column; align-items: center; width: 100%; }
+    .widget-section { flex-direction: column; align-items: center; width: 100%; gap: 0; }
     .left-col, .right-col { width: 100%; }
-    .left-col { margin-bottom: 16px; }
+    .left-col { margin-bottom: 8px; }
+    .jinzhu-home { flex: none; width: 100%; min-height: 122px; align-self: center; margin: -2px 0 7px; }
+    .jinzhu-cat { width: 110px; height: 110px; }
+    .jinzhu-cat img { width: 104px; height: 104px; }
+    .jinzhu-bubble { bottom: 105px; max-width: min(210px, 72vw); }
+    .jinzhu-panel { top: 112px; }
+    .jinzhu-home:has(.jinzhu-panel:not([hidden])) { margin-bottom: 89px; }
     .card { padding: 20px; border-radius: 20px; }
     .weather-main { font-size: 28px; }
     .msg-item { font-size: 16px; }
