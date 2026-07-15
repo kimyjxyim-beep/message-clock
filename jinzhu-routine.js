@@ -25,6 +25,7 @@
     var schedulerGeneration = 0;
     var currentStatus = "idle";
     var currentPosition = { x: 0, y: 0 };
+    var legacyPosition = false;
     var lastTapAt = 0;
     var introWalkPending = false;
     var pendingEatingDuration = 10000;
@@ -294,6 +295,19 @@
         home.style.setProperty("--jinzhu-walk-duration", duration + "ms");
         home.style.setProperty("--jinzhu-x", Math.round(safe.x) + "px");
         home.style.setProperty("--jinzhu-y", Math.round(safe.y) + "px");
+        // iPad mini 1 / iOS 9 does not support CSS custom properties. Keep a
+        // direct left/top fallback so the pet is not stuck at (0, 0).
+        if (!legacyPosition) {
+            var probe = getComputedStyle(home).getPropertyValue("--jinzhu-x");
+            legacyPosition = !probe;
+            if (legacyPosition) home.className += " jinzhu-legacy-position";
+        }
+        if (legacyPosition) {
+            walker.style.left = Math.round(safe.x) + "px";
+            walker.style.top = Math.round(safe.y) + "px";
+            walker.style.transform = "none";
+            walker.style.transition = duration ? "left " + duration + "ms ease, top " + duration + "ms ease" : "none";
+        }
         currentPosition = safe;
         var bounds = getViewportBounds();
         state.positionX = bounds.maxX > bounds.minX ? (safe.x - bounds.minX) / (bounds.maxX - bounds.minX) : 0;
