@@ -50,12 +50,13 @@
             <div class="jinzhu-walker" id="jinzhu-walker">
                 <div class="jinzhu-bubble" id="jinzhu-bubble" role="status" aria-live="polite">我唔系宠物，我系金主。</div>
                 <button class="jinzhu-cat" id="jinzhu-cat" type="button" aria-label="同金主玩">
-                    <img src="assets/jinzhu.png" alt="金主，一隻白色貓貓" width="108" height="108">
+                    <img id="jinzhu-image" src="assets/jinzhu/idle-1.png" alt="金主，一隻白色貓貓" width="108" height="108">
                 </button>
                 <div class="jinzhu-panel" id="jinzhu-panel" hidden>
                     <div class="jinzhu-stats" aria-label="金主狀態">
                         <span>心情 <b id="jinzhu-mood">72</b></span>
                         <span>能量 <b id="jinzhu-energy">68</b></span>
+                        <span>饱腹 <b id="jinzhu-fullness">76</b></span>
                         <span>親密 <b id="jinzhu-bond">40</b></span>
                     </div>
                     <div class="jinzhu-actions">
@@ -79,6 +80,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="jinzhu-routine.js"></script>
 <script src="app.js"></script>
 
 </body>

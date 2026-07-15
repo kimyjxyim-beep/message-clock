@@ -170,12 +170,14 @@ setInterval(fetchWeather, 10 * 60 * 1000);
 
 /* 金主：輕量互動與本機狀態 */
 (function initJinzhu() {
+    if (window.JINZHU_ROUTINE_V2) return;
     var home = document.getElementById("jinzhu-home");
     var walker = document.getElementById("jinzhu-walker");
     var cat = document.getElementById("jinzhu-cat");
+    var catImage = document.getElementById("jinzhu-image");
     var bubble = document.getElementById("jinzhu-bubble");
     var panel = document.getElementById("jinzhu-panel");
-    if (!home || !walker || !cat || !bubble || !panel) return;
+    if (!home || !walker || !cat || !catImage || !bubble || !panel) return;
 
     var storageKey = "messageClockJinzhuState";
     var state = { mood: 72, energy: 68, bond: 40, lastInteraction: Date.now() };
@@ -205,10 +207,42 @@ setInterval(fetchWeather, 10 * 60 * 1000);
     var bubbleTimer;
     var behaviorTimer;
     var sleepTimer;
+    var spriteTimer;
     var currentStatus = "idle";
     var currentPosition = { x: 0, y: 0 };
     var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    var behaviorClasses = ["idle", "walk", "look-around", "grooming", "sleepy", "sleeping", "happy", "eating"];
+    var testMode = new URLSearchParams(location.search).get("jinzhuTest");
+    var isLocalTest = (location.hostname === "127.0.0.1" || location.hostname === "localhost") &&
+        (testMode === "sleep" || testMode === "behaviors");
+    var sleepyAfter = testMode === "sleep" && isLocalTest ? 3000 : 3 * 60 * 1000;
+    var sleepingAfter = testMode === "sleep" && isLocalTest ? 8000 : 8 * 60 * 1000;
+    var sleepCheckInterval = testMode === "sleep" && isLocalTest ? 250 : 15000;
+    var testBehaviors = ["look-around", "grooming", "playing"];
+    if (isLocalTest) state.lastInteraction = Date.now();
+    var behaviorClasses = ["idle", "walk", "look-around", "grooming", "playing", "sleepy", "sleeping", "happy", "eating"];
+    var spriteBase = "assets/jinzhu/";
+    var sprites = {
+        idle: ["idle-1.png", "idle-2.png", "idle-3.png", "idle-4.png", "idle-5.png", "idle-2.png"],
+        walk: ["walk-1.png", "walk-2.png", "walk-3.png", "walk-4.png", "walk-5.png", "walk-6.png", "walk-7.png"],
+        "look-around": ["look-1.png", "look-2.png", "look-3.png", "look-4.png", "look-5.png", "look-3.png"],
+        grooming: ["groom-1.png", "groom-2.png", "groom-3.png", "groom-4.png", "groom-1.png"],
+        playing: ["roll-1.png", "roll-2.png", "roll-3.png", "roll-4.png", "roll-5.png", "roll-6.png"],
+        happy: ["happy-1.png", "happy-2.png", "happy-3.png", "happy-4.png", "happy-2.png"],
+        eating: ["groom-1.png", "groom-4.png", "groom-1.png", "groom-4.png"],
+        sleepy: ["idle-3.png", "idle-4.png"],
+        sleeping: ["sleep-1.png"]
+    };
+    var spriteSpeeds = {
+        idle: 900, walk: 145, "look-around": 480, grooming: 520,
+        playing: 340, happy: 300, eating: 430, sleepy: 1500, sleeping: 2500
+    };
+
+    Object.keys(sprites).forEach(function (name) {
+        sprites[name].forEach(function (filename) {
+            var preload = new Image();
+            preload.src = spriteBase + filename;
+        });
+    });
 
     function clamp(value) { return Math.max(0, Math.min(100, value)); }
     function saveAndRender(shouldSave) {
@@ -228,8 +262,23 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         }
         home.classList.add(status);
         currentStatus = status;
+        playSprite(status);
+    }
+    function playSprite(status) {
+        clearInterval(spriteTimer);
+        var frames = sprites[status] || sprites.idle;
+        var frameIndex = 0;
+        catImage.src = spriteBase + frames[0];
+        if (document.hidden || reduceMotion.matches || frames.length < 2) return;
+        spriteTimer = setInterval(function () {
+            frameIndex = (frameIndex + 1) % frames.length;
+            catImage.src = spriteBase + frames[frameIndex];
+        }, spriteSpeeds[status] || 600);
     }
     function say(text, persistent) {
+        var spaceOnRight = window.innerWidth - (currentPosition.x + walker.offsetWidth);
+        home.classList.toggle("bubble-right", spaceOnRight >= 126);
+        home.classList.toggle("bubble-left", spaceOnRight < 126);
         bubble.textContent = text;
         bubble.classList.add("show");
         clearTimeout(bubbleTimer);
@@ -251,18 +300,45 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         var widestPopoverHalf = 112;
         var safeBottom = Math.max(14, parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-bottom")) || 0);
         var minY = Math.max(Math.round(window.innerHeight * .46), Math.round(dateBottom + 56));
-        var maxY = window.innerHeight - petHeight - safeBottom - 92;
+        var maxY = window.innerHeight - petHeight - safeBottom - 10;
         var minX = widestPopoverHalf - petWidth / 2 + horizontalPadding;
         var maxX = window.innerWidth - widestPopoverHalf - petWidth / 2 - horizontalPadding;
 
         // 短螢幕仍保證金主在日期下方，並完整留在視口內。
+        var hasRoom = dateBottom + 16 <= maxY;
         if (minY > maxY) minY = Math.max(0, maxY);
         return {
             minX: Math.max(horizontalPadding, minX),
             maxX: Math.max(Math.max(horizontalPadding, minX), maxX),
             minY: minY,
-            maxY: Math.max(minY, maxY)
+            maxY: Math.max(minY, maxY),
+            hasRoom: hasRoom
         };
+    }
+    function overlaps(rect, obstacle, margin) {
+        return !(
+            rect.right + margin <= obstacle.left ||
+            rect.left - margin >= obstacle.right ||
+            rect.bottom + margin <= obstacle.top ||
+            rect.top - margin >= obstacle.bottom
+        );
+    }
+    function positionIsSafe(position) {
+        var petRect = {
+            left: position.x,
+            top: position.y,
+            right: position.x + (walker.offsetWidth || 116),
+            bottom: position.y + (walker.offsetHeight || 116)
+        };
+        var selectors = [".clock", ".date", ".weather-card", ".message"];
+        for (var i = 0; i < selectors.length; i++) {
+            var element = document.querySelector(selectors[i]);
+            if (!element) continue;
+            var rect = element.getBoundingClientRect();
+            if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+            if (overlaps(petRect, rect, 8)) return false;
+        }
+        return true;
     }
     function clampPosition(position) {
         var bounds = getSafeBounds();
@@ -272,6 +348,8 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         };
     }
     function setPosition(position, duration) {
+        var bounds = getSafeBounds();
+        home.classList.toggle("no-safe-room", !bounds.hasRoom);
         var safe = clampPosition(position);
         if (safe.x < currentPosition.x) home.style.setProperty("--jinzhu-facing", "-1");
         if (safe.x > currentPosition.x) home.style.setProperty("--jinzhu-facing", "1");
@@ -290,29 +368,43 @@ setInterval(fetchWeather, 10 * 60 * 1000);
     }
     function randomPosition() {
         var bounds = getSafeBounds();
-        var target;
+        var slot = home.getBoundingClientRect();
+        var laneMinX = Math.max(bounds.minX, slot.left + 6);
+        var laneMaxX = Math.min(bounds.maxX, slot.right - walker.offsetWidth - 6);
+        var laneMinY = Math.max(bounds.minY, slot.top);
+        var laneMaxY = Math.min(bounds.maxY, slot.bottom - walker.offsetHeight);
+        var target = null;
         var attempts = 0;
-        do {
-            target = {
+        while (attempts < 80) {
+            var useLane = laneMaxX >= laneMinX && laneMaxY >= laneMinY && (attempts < 40 || window.innerWidth <= 600);
+            var candidate = useLane ? {
+                x: laneMinX + Math.random() * (laneMaxX - laneMinX),
+                y: laneMinY + Math.random() * Math.max(0, laneMaxY - laneMinY)
+            } : {
                 x: bounds.minX + Math.random() * (bounds.maxX - bounds.minX),
                 y: bounds.minY + Math.random() * (bounds.maxY - bounds.minY)
             };
             attempts++;
-        } while (
-            attempts < 8 &&
-            Math.abs(target.x - currentPosition.x) + Math.abs(target.y - currentPosition.y) < 90
-        );
-        return target;
+            if (
+                positionIsSafe(candidate) &&
+                Math.abs(candidate.x - currentPosition.x) + Math.abs(candidate.y - currentPosition.y) >= 50
+            ) {
+                target = candidate;
+                break;
+            }
+        }
+        return target || homePosition();
     }
     function scheduleNextBehavior(delay) {
         clearTimeout(behaviorTimer);
         if (reduceMotion.matches || currentStatus === "sleeping" || currentStatus === "sleepy") return;
-        behaviorTimer = setTimeout(chooseBehavior, delay == null ? 8000 + Math.random() * 12000 : delay);
+        var nextDelay = testMode === "behaviors" && isLocalTest ? 400 : 8000 + Math.random() * 12000;
+        behaviorTimer = setTimeout(chooseBehavior, delay == null ? nextDelay : delay);
     }
     function finishBehavior(delay) {
         clearTimeout(behaviorTimer);
         behaviorTimer = setTimeout(function () {
-            if (Date.now() - state.lastInteraction >= 3 * 60 * 1000) {
+            if (Date.now() - state.lastInteraction >= sleepyAfter) {
                 updateSleepState();
                 return;
             }
@@ -326,31 +418,46 @@ setInterval(fetchWeather, 10 * 60 * 1000);
             return;
         }
         setStatus("walk");
-        var duration = 3000 + Math.random() * 5000;
+        var duration = testMode === "behaviors" && isLocalTest ? 900 : 3000 + Math.random() * 5000;
         setPosition(randomPosition(), duration);
         finishBehavior(duration + 150);
     }
     function lookAround() {
         setStatus("look-around");
-        finishBehavior(2600);
+        finishBehavior(testMode === "behaviors" && isLocalTest ? 700 : 2600);
     }
     function groom() {
         setStatus("grooming");
         say("整理下毛先。");
-        finishBehavior(3000 + Math.random() * 2000);
+        finishBehavior(testMode === "behaviors" && isLocalTest ? 900 : 3000 + Math.random() * 2000);
+    }
+    function play() {
+        setStatus("playing");
+        say("活動下先。");
+        finishBehavior(testMode === "behaviors" && isLocalTest ? 900 : 3200 + Math.random() * 1200);
     }
     function chooseBehavior() {
-        if (reduceMotion.matches || Date.now() - state.lastInteraction >= 3 * 60 * 1000) {
+        if (reduceMotion.matches || Date.now() - state.lastInteraction >= sleepyAfter) {
             updateSleepState();
             return;
         }
+        if (isLocalTest && testBehaviors.length) {
+            var next = testBehaviors.shift();
+            if (next === "walk") walk();
+            if (next === "look-around") lookAround();
+            if (next === "grooming") groom();
+            if (next === "playing") play();
+            return;
+        }
         var roll = Math.random();
-        if (roll < .5) {
+        if (roll < .46) {
             walk();
-        } else if (roll < .72) {
+        } else if (roll < .66) {
             lookAround();
-        } else if (roll < .9) {
+        } else if (roll < .82) {
             groom();
+        } else if (roll < .94) {
+            play();
         } else {
             setStatus("idle");
             scheduleNextBehavior();
@@ -359,7 +466,7 @@ setInterval(fetchWeather, 10 * 60 * 1000);
     function updateSleepState() {
         if (currentStatus === "happy" || currentStatus === "eating") return;
         var idleTime = Date.now() - state.lastInteraction;
-        if (idleTime >= 8 * 60 * 1000) {
+        if (idleTime >= sleepingAfter) {
             if (currentStatus !== "sleeping") {
                 clearTimeout(behaviorTimer);
                 panel.hidden = true;
@@ -367,7 +474,7 @@ setInterval(fetchWeather, 10 * 60 * 1000);
                 say("zzZ", true);
                 saveAndRender(true);
             }
-        } else if (idleTime >= 3 * 60 * 1000) {
+        } else if (idleTime >= sleepyAfter) {
             if (currentStatus !== "sleepy") {
                 clearTimeout(behaviorTimer);
                 setStatus("sleepy");
@@ -394,7 +501,7 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         say(line);
         behaviorTimer = setTimeout(function () {
             setStatus("idle");
-            scheduleNextBehavior();
+            if (panel.hidden) scheduleNextBehavior();
         }, 2000);
     }
 
@@ -406,9 +513,15 @@ setInterval(fetchWeather, 10 * 60 * 1000);
             scheduleNextBehavior();
             return;
         }
+        var openingPanel = panel.hidden;
         panel.hidden = !panel.hidden;
         say(pick(lines));
-        scheduleNextBehavior();
+        if (openingPanel) {
+            clearTimeout(behaviorTimer);
+            setStatus("idle");
+        } else {
+            scheduleNextBehavior();
+        }
     });
     panel.addEventListener("click", function (event) {
         var button = event.target.closest("[data-jinzhu-action]");
@@ -427,7 +540,7 @@ setInterval(fetchWeather, 10 * 60 * 1000);
             state.bond += 5; state.mood += 2; state.energy -= 2;
             setStatus("idle");
             say(pick(actionLines.chat));
-            scheduleNextBehavior();
+            if (panel.hidden) scheduleNextBehavior();
         }
         saveAndRender(true);
     });
@@ -443,13 +556,32 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         reduceMotion.addListener(handleMotionPreference);
     }
     window.addEventListener("resize", function () {
-        setPosition(currentPosition, 300);
+        setPosition(positionIsSafe(currentPosition) ? currentPosition : homePosition(), 0);
+    });
+    window.addEventListener("orientationchange", function () {
+        setTimeout(function () { setPosition(homePosition(), 0); }, 120);
+    });
+    window.addEventListener("scroll", function () {
+        setPosition(positionIsSafe(currentPosition) ? currentPosition : homePosition(), 0);
+    }, { passive: true });
+    document.addEventListener("visibilitychange", function () {
+        clearTimeout(behaviorTimer);
+        clearInterval(spriteTimer);
+        clearInterval(sleepTimer);
+        if (document.hidden) return;
+        setPosition(positionIsSafe(currentPosition) ? currentPosition : homePosition(), 0);
+        updateSleepState();
+        playSprite(currentStatus);
+        sleepTimer = setInterval(updateSleepState, sleepCheckInterval);
+        if (!reduceMotion.matches && currentStatus !== "sleepy" && currentStatus !== "sleeping") {
+            scheduleNextBehavior(1200);
+        }
     });
 
     saveAndRender(false);
     setPosition(homePosition(), 0);
     updateSleepState();
-    sleepTimer = setInterval(updateSleepState, 15000);
+    sleepTimer = setInterval(updateSleepState, sleepCheckInterval);
     if (!reduceMotion.matches && currentStatus !== "sleepy" && currentStatus !== "sleeping") {
         clearTimeout(behaviorTimer);
         behaviorTimer = setTimeout(walk, 1200);

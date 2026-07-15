@@ -4,6 +4,10 @@
     box-sizing: border-box;
 }
 
+:root {
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: #ffffff;
@@ -197,6 +201,9 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     align-items: stretch;
     gap: 18px;
 }
+@supports (min-height: 100dvh) {
+    body { min-height: 100dvh; }
+}
 
 .left-col, .right-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 
@@ -245,15 +252,13 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     --jinzhu-y: 0px;
     --jinzhu-facing: 1;
     --jinzhu-walk-duration: 5s;
-    position: relative;
-    flex: 0 0 158px;
-    min-height: 142px;
-    align-self: flex-end;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-direction: column;
+    position: static;
+    flex: 0 0 0;
+    width: 0;
+    height: 0;
+    min-height: 0;
     z-index: 8;
+    pointer-events: none;
 }
 .jinzhu-walker {
     position: fixed;
@@ -265,6 +270,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     transition: transform var(--jinzhu-walk-duration) cubic-bezier(.42, .05, .32, 1);
     will-change: transform;
     z-index: 20;
+    opacity: 1;
+    pointer-events: none;
 }
 .jinzhu-cat {
     width: 116px;
@@ -278,6 +285,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     filter: drop-shadow(0 9px 9px rgba(0, 0, 0, .38));
     transform: scaleX(var(--jinzhu-facing));
     transition: transform .18s ease;
+    pointer-events: auto;
 }
 .jinzhu-cat img {
     width: 108px;
@@ -292,7 +300,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .jinzhu-home.idle .jinzhu-cat img { animation: jinzhu-breathe 3.8s ease-in-out infinite; }
 .jinzhu-home.look-around .jinzhu-cat img { animation: jinzhu-glance 1.25s ease-in-out 2; }
 .jinzhu-home.grooming .jinzhu-cat img { animation: jinzhu-grooming .72s ease-in-out infinite; }
-.jinzhu-home.walk .jinzhu-cat img { animation: jinzhu-walk-step .58s ease-in-out infinite; }
+.jinzhu-home.walking .jinzhu-cat img { animation: jinzhu-walk-step .58s ease-in-out infinite; }
+.jinzhu-home.playing .jinzhu-cat img { animation: jinzhu-playful .8s ease-in-out infinite; }
 .jinzhu-home.happy .jinzhu-cat img { animation: jinzhu-happy .55s ease-in-out 3; }
 .jinzhu-home.eating .jinzhu-cat img { animation: jinzhu-eating .42s ease-in-out 5; }
 .jinzhu-home.sleepy .jinzhu-cat img {
@@ -308,7 +317,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     left: 50%;
     bottom: 122px;
     width: max-content;
-    max-width: 210px;
+    max-width: min(210px, calc(100vw - 24px));
     padding: 9px 12px;
     border-radius: 13px;
     background: rgba(250,250,250,.94);
@@ -329,7 +338,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     background: rgba(250,250,250,.94);
     transform: translateX(-50%) rotate(45deg);
 }
-.jinzhu-bubble.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.jinzhu-bubble.show { opacity: 1; transform: translate(-50%, 0) scale(1); pointer-events: auto; }
 .jinzhu-home.sleeping .jinzhu-bubble { font-weight: 600; letter-spacing: 1px; }
 .jinzhu-panel {
     position: absolute;
@@ -343,13 +352,28 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     backdrop-filter: blur(20px);
     box-shadow: 0 14px 34px rgba(0,0,0,.42);
     transform: translateX(-50%);
+    pointer-events: auto;
 }
+.jinzhu-home.panel-above .jinzhu-panel { top: auto; bottom: calc(100% + 7px); }
+.jinzhu-home.bubble-right .jinzhu-bubble {
+    left: calc(100% + 6px); bottom: 52px;
+    transform: translate(0, 6px) scale(.96);
+}
+.jinzhu-home.bubble-right .jinzhu-bubble.show { transform: translate(0, 0) scale(1); }
+.jinzhu-home.bubble-left .jinzhu-bubble {
+    left: auto; right: calc(100% + 6px); bottom: 52px;
+    transform: translate(0, 6px) scale(.96);
+}
+.jinzhu-home.bubble-left .jinzhu-bubble.show { transform: translate(0, 0) scale(1); }
+.jinzhu-home.bubble-right .jinzhu-bubble::after { left: -5px; bottom: 12px; }
+.jinzhu-home.bubble-left .jinzhu-bubble::after { left: auto; right: -11px; bottom: 12px; }
 .jinzhu-stats { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: rgba(235,235,245,.62); font-size: 11px; }
 .jinzhu-stats b { color: #fff; font-weight: 600; }
 .jinzhu-actions { display: flex; gap: 7px; }
 .jinzhu-actions button {
     flex: 1;
-    padding: 7px 4px;
+    min-height: 44px;
+    padding: 9px 4px;
     border: 1px solid rgba(255,255,255,.1);
     border-radius: 10px;
     background: rgba(255,255,255,.08);
@@ -358,6 +382,19 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     cursor: pointer;
 }
 .jinzhu-actions button:active { background: rgba(255,255,255,.18); }
+.jinzhu-debug {
+    position: fixed;
+    left: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    z-index: 100;
+    max-width: calc(100vw - 16px);
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(0,0,0,.78);
+    color: #9fffb0;
+    font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+    pointer-events: none;
+}
 @keyframes jinzhu-breathe {
     0%, 100% { transform: translateY(0) scale(1); }
     50% { transform: translateY(-3px) scale(1.012); }
@@ -375,6 +412,10 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 @keyframes jinzhu-walk-step {
     0%, 100% { transform: translateY(0) scaleY(1); }
     50% { transform: translateY(-3px) scaleY(.985); }
+}
+@keyframes jinzhu-playful {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50% { transform: translateY(-2px) rotate(1deg); }
 }
 @keyframes jinzhu-happy {
     0%, 100% { transform: translateY(0) scale(1) rotate(0); }
@@ -430,7 +471,10 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
    手機端 (動態佈滿空間，改為單行排列)
 ==================== */
 @media (max-width: 600px) {
-    .container { margin-top: 4vh; margin-bottom: 4vh; }
+    .container {
+        margin-top: 4vh;
+        margin-bottom: calc(4vh + env(safe-area-inset-bottom, 0px));
+    }
     .header-section { margin-bottom: 35px; }
     .flip-card {
         width: 44vw;
@@ -465,13 +509,16 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .widget-section { flex-direction: column; align-items: center; width: 100%; gap: 0; }
     .left-col, .right-col { width: 100%; }
     .left-col { margin-bottom: 8px; }
-    .jinzhu-home { flex: none; width: 100%; min-height: 122px; align-self: center; margin: -2px 0 7px; }
     .jinzhu-walker { width: 110px; height: 110px; }
     .jinzhu-cat { width: 110px; height: 110px; }
     .jinzhu-cat img { width: 104px; height: 104px; }
-    .jinzhu-bubble { bottom: 105px; max-width: min(210px, 72vw); }
+    .jinzhu-bubble {
+        bottom: 52px;
+        width: 112px;
+        max-width: 112px;
+    }
     .jinzhu-panel { top: 112px; }
-    .jinzhu-home:has(.jinzhu-panel:not([hidden])) { margin-bottom: 89px; }
+    .jinzhu-home.panel-above .jinzhu-panel { top: auto; bottom: 112px; }
     .card { padding: 20px; border-radius: 20px; }
     .weather-main { font-size: 28px; }
     .msg-item { font-size: 16px; }
