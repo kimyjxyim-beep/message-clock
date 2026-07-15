@@ -25,6 +25,7 @@
     var currentStatus = "idle";
     var currentPosition = { x: 0, y: 0 };
     var lastTapAt = 0;
+    var introWalkPending = false;
     var spriteBase = "assets/jinzhu/";
     var behaviorClasses = [
         "sleeping", "sleepy", "idle", "look-around", "grooming",
@@ -70,6 +71,17 @@
             });
         }
     } catch (e) {}
+
+    if (!debugMode && !reduceMotion.matches) {
+        try {
+            if (!sessionStorage.getItem("jinzhuAliveIntroSeen")) {
+                sessionStorage.setItem("jinzhuAliveIntroSeen", "1");
+                introWalkPending = true;
+            }
+        } catch (e) {
+            introWalkPending = true;
+        }
+    }
 
     if (debugMode && isFinite(Number(params.get("jinzhuFullness")))) {
         state.fullness = Number(params.get("jinzhuFullness"));
@@ -374,8 +386,8 @@
         schedule(randomBetween(6, 15) * 1000, function () { idleFor(40, 120); });
     }
 
-    function startWalking() {
-        if (Date.now() < Number(state.nextWalkAllowed || 0) || reduceMotion.matches) {
+    function startWalking(isIntro) {
+        if ((!isIntro && Date.now() < Number(state.nextWalkAllowed || 0)) || reduceMotion.matches) {
             idleFor(30, 90);
             return;
         }
@@ -383,7 +395,14 @@
         state.nextWalkAllowed = Date.now() + randomBetween(45, 180) * 1000;
         setStatus("walking");
         setPosition(randomRoamingPosition(), scaledDuration(duration));
-        schedule(duration, function () { idleFor(30, 120); });
+        schedule(duration, function () {
+            if (isIntro) {
+                setStatus("look-around");
+                schedule(randomBetween(3, 6) * 1000, function () { idleFor(30, 90); });
+            } else {
+                idleFor(30, 120);
+            }
+        });
     }
 
     function startPlaying() {
@@ -556,9 +575,13 @@
             startSleeping();
         } else if (period === "wind-down") {
             startSleepy();
+        } else if (introWalkPending) {
+            introWalkPending = false;
+            setStatus("look-around");
+            schedule(randomBetween(6, 10) * 1000, function () { startWalking(true); });
         } else {
             setStatus("idle");
-            schedule(randomBetween(30, 75) * 1000, chooseNextBehavior);
+            schedule(randomBetween(12, 30) * 1000, chooseNextBehavior);
         }
     }
 
