@@ -563,6 +563,14 @@
             schedule(routinePeriod() === "night" ? randomBetween(15, 40) * 1000 : randomBetween(30, 90) * 1000, chooseNextBehavior);
         }, exactDuration);
     }
+    var lastChatReply = "";
+    var chatReplies = ["你做嘢，我監督。", "今日有冇摸我？", "我唔系寵物，我系金主。", "做完先准休息。", "我醒住，你放心。"];
+    function nextChatReply() {
+        var choices = chatReplies.filter(function (reply) { return reply !== lastChatReply; });
+        var reply = choices[Math.floor(Math.random() * choices.length)] || chatReplies[0];
+        lastChatReply = reply;
+        return reply;
+    }
 
     cat.addEventListener("click", function () {
         if (!interactionAllowed()) return;
@@ -625,6 +633,7 @@
             if (currentStatus === "sleeping" || currentStatus === "sleepy") reply = "zzz…";
             else if (state.fullness < 25) reply = "想食嘢。";
             else if (state.mood > 80) reply = "今日都幾乖。";
+            if (currentStatus !== "sleeping" && currentStatus !== "sleepy" && state.fullness >= 25 && state.mood <= 80) reply = nextChatReply();
             setStatus("idle");
             say(reply);
             schedule(randomBetween(30, 90) * 1000, chooseNextBehavior);
