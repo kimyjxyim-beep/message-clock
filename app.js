@@ -203,11 +203,12 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         chat: lines
     };
     var bubbleTimer;
-    var actionTimer;
-    var moveTimer;
-    var glanceTimer;
+    var behaviorTimer;
+    var sleepTimer;
     var currentStatus = "idle";
+    var currentPosition = { x: 0, y: 0 };
     var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    var behaviorClasses = ["idle", "walk", "look-around", "grooming", "sleepy", "sleeping", "happy", "eating"];
 
     function clamp(value) { return Math.max(0, Math.min(100, value)); }
     function saveAndRender(shouldSave) {
@@ -221,11 +222,12 @@ setInterval(fetchWeather, 10 * 60 * 1000);
             try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (e) {}
         }
     }
-    function setStatus(status, shouldSave) {
-        home.classList.remove("idle", "happy", "eating", "sleepy", "sleeping", "glance");
+    function setStatus(status) {
+        for (var i = 0; i < behaviorClasses.length; i++) {
+            home.classList.remove(behaviorClasses[i]);
+        }
         home.classList.add(status);
         currentStatus = status;
-        if (shouldSave) saveAndRender(true);
     }
     function say(text, persistent) {
         bubble.textContent = text;
@@ -236,83 +238,177 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         }
     }
     function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
-    function wakeUp() {
-        clearTimeout(actionTimer);
+    function recordInteraction() {
         state.lastInteraction = Date.now();
-        setStatus("idle", true);
+        saveAndRender(true);
     }
-    function playStatus(status) {
-        clearTimeout(actionTimer);
-        setStatus(status, true);
-        actionTimer = setTimeout(function () { setStatus("idle", false); }, 2000);
+    function getSafeBounds() {
+        var date = document.getElementById("date");
+        var dateBottom = date ? date.getBoundingClientRect().bottom : window.innerHeight * .35;
+        var petWidth = walker.offsetWidth || 116;
+        var petHeight = walker.offsetHeight || 116;
+        var horizontalPadding = 8;
+        var widestPopoverHalf = 112;
+        var safeBottom = Math.max(14, parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-bottom")) || 0);
+        var minY = Math.max(Math.round(window.innerHeight * .46), Math.round(dateBottom + 56));
+        var maxY = window.innerHeight - petHeight - safeBottom - 92;
+        var minX = widestPopoverHalf - petWidth / 2 + horizontalPadding;
+        var maxX = window.innerWidth - widestPopoverHalf - petWidth / 2 - horizontalPadding;
+
+        // 短螢幕仍保證金主在日期下方，並完整留在視口內。
+        if (minY > maxY) minY = Math.max(0, maxY);
+        return {
+            minX: Math.max(horizontalPadding, minX),
+            maxX: Math.max(Math.max(horizontalPadding, minX), maxX),
+            minY: minY,
+            maxY: Math.max(minY, maxY)
+        };
     }
-    function moveSafely(forceCenter) {
+    function clampPosition(position) {
+        var bounds = getSafeBounds();
+        return {
+            x: Math.max(bounds.minX, Math.min(bounds.maxX, position.x)),
+            y: Math.max(bounds.minY, Math.min(bounds.maxY, position.y))
+        };
+    }
+    function setPosition(position, duration) {
+        var safe = clampPosition(position);
+        if (safe.x < currentPosition.x) home.style.setProperty("--jinzhu-facing", "-1");
+        if (safe.x > currentPosition.x) home.style.setProperty("--jinzhu-facing", "1");
+        home.style.setProperty("--jinzhu-walk-duration", duration + "ms");
+        home.style.setProperty("--jinzhu-x", Math.round(safe.x) + "px");
+        home.style.setProperty("--jinzhu-y", Math.round(safe.y) + "px");
+        currentPosition = safe;
+    }
+    function homePosition() {
+        var bounds = getSafeBounds();
+        var slot = home.getBoundingClientRect();
+        return clampPosition({
+            x: slot.left + slot.width / 2 - walker.offsetWidth / 2,
+            y: Math.max(bounds.minY, Math.min(bounds.maxY, slot.top))
+        });
+    }
+    function randomPosition() {
+        var bounds = getSafeBounds();
+        var target;
+        var attempts = 0;
+        do {
+            target = {
+                x: bounds.minX + Math.random() * (bounds.maxX - bounds.minX),
+                y: bounds.minY + Math.random() * (bounds.maxY - bounds.minY)
+            };
+            attempts++;
+        } while (
+            attempts < 8 &&
+            Math.abs(target.x - currentPosition.x) + Math.abs(target.y - currentPosition.y) < 90
+        );
+        return target;
+    }
+    function scheduleNextBehavior(delay) {
+        clearTimeout(behaviorTimer);
+        if (reduceMotion.matches || currentStatus === "sleeping" || currentStatus === "sleepy") return;
+        behaviorTimer = setTimeout(chooseBehavior, delay == null ? 8000 + Math.random() * 12000 : delay);
+    }
+    function finishBehavior(delay) {
+        clearTimeout(behaviorTimer);
+        behaviorTimer = setTimeout(function () {
+            if (Date.now() - state.lastInteraction >= 3 * 60 * 1000) {
+                updateSleepState();
+                return;
+            }
+            setStatus("idle");
+            scheduleNextBehavior();
+        }, delay);
+    }
+    function walk() {
         if (reduceMotion.matches) {
-            home.style.setProperty("--jinzhu-x", "0px");
-            home.style.setProperty("--jinzhu-y", "0px");
+            setStatus("idle");
             return;
         }
-        var homeRect = home.getBoundingClientRect();
-        var centerX = homeRect.left + homeRect.width / 2;
-        var safeVisualHalf = 112; // 菜單比貓寬，按菜單寬度預留螢幕邊界
-        var screenLimit = Math.min(centerX - safeVisualHalf - 8, window.innerWidth - centerX - safeVisualHalf - 8);
-        var movementCap = window.innerWidth <= 600 ? 72 : 30;
-        var maxX = Math.max(0, Math.min(movementCap, screenLimit));
-        var x = forceCenter ? 0 : Math.round((Math.random() * 2 - 1) * maxX);
-        var y = forceCenter ? 0 : Math.round(Math.random() * 6 - 3);
-        home.style.setProperty("--jinzhu-x", x + "px");
-        home.style.setProperty("--jinzhu-y", y + "px");
+        setStatus("walk");
+        var duration = 3000 + Math.random() * 5000;
+        setPosition(randomPosition(), duration);
+        finishBehavior(duration + 150);
     }
-    function scheduleMove() {
-        clearTimeout(moveTimer);
-        if (reduceMotion.matches) return;
-        moveTimer = setTimeout(function () {
-            if (currentStatus !== "sleeping") moveSafely(false);
-            scheduleMove();
-        }, 20000 + Math.random() * 20000);
+    function lookAround() {
+        setStatus("look-around");
+        finishBehavior(2600);
     }
-    function scheduleGlance() {
-        clearTimeout(glanceTimer);
-        if (reduceMotion.matches) return;
-        glanceTimer = setTimeout(function () {
-            if (currentStatus === "idle") {
-                home.classList.add("glance");
-                setTimeout(function () { home.classList.remove("glance"); }, 1250);
-            }
-            scheduleGlance();
-        }, 12000 + Math.random() * 12000);
+    function groom() {
+        setStatus("grooming");
+        say("整理下毛先。");
+        finishBehavior(3000 + Math.random() * 2000);
+    }
+    function chooseBehavior() {
+        if (reduceMotion.matches || Date.now() - state.lastInteraction >= 3 * 60 * 1000) {
+            updateSleepState();
+            return;
+        }
+        var roll = Math.random();
+        if (roll < .5) {
+            walk();
+        } else if (roll < .72) {
+            lookAround();
+        } else if (roll < .9) {
+            groom();
+        } else {
+            setStatus("idle");
+            scheduleNextBehavior();
+        }
     }
     function updateSleepState() {
         if (currentStatus === "happy" || currentStatus === "eating") return;
         var idleTime = Date.now() - state.lastInteraction;
         if (idleTime >= 8 * 60 * 1000) {
             if (currentStatus !== "sleeping") {
+                clearTimeout(behaviorTimer);
                 panel.hidden = true;
-                moveSafely(true);
-                setStatus("sleeping", true);
+                setStatus("sleeping");
                 say("zzZ", true);
+                saveAndRender(true);
             }
         } else if (idleTime >= 3 * 60 * 1000) {
             if (currentStatus !== "sleepy") {
-                setStatus("sleepy", true);
+                clearTimeout(behaviorTimer);
+                setStatus("sleepy");
                 say("有少少眼瞓…");
+                saveAndRender(true);
             }
         } else if (currentStatus === "sleepy" || currentStatus === "sleeping") {
-            setStatus("idle", false);
+            setStatus("idle");
+            scheduleNextBehavior();
         }
+    }
+    function wakeUp() {
+        var wasAsleep = currentStatus === "sleeping" || currentStatus === "sleepy";
+        clearTimeout(behaviorTimer);
+        clearTimeout(bubbleTimer);
+        bubble.classList.remove("show");
+        recordInteraction();
+        setStatus("idle");
+        return wasAsleep;
+    }
+    function playInteraction(status, line) {
+        clearTimeout(behaviorTimer);
+        setStatus(status);
+        say(line);
+        behaviorTimer = setTimeout(function () {
+            setStatus("idle");
+            scheduleNextBehavior();
+        }, 2000);
     }
 
     cat.addEventListener("click", function () {
-        var wasSleeping = currentStatus === "sleeping" || currentStatus === "sleepy";
-        wakeUp();
-        bubble.classList.remove("show");
+        var wasSleeping = wakeUp();
         if (wasSleeping) {
             panel.hidden = true;
             say("我醒住，你放心。");
+            scheduleNextBehavior();
             return;
         }
         panel.hidden = !panel.hidden;
         say(pick(lines));
+        scheduleNextBehavior();
     });
     panel.addEventListener("click", function (event) {
         var button = event.target.closest("[data-jinzhu-action]");
@@ -321,35 +417,41 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         wakeUp();
         if (action === "pet") {
             state.mood += 6; state.bond += 3; state.energy -= 1;
-            playStatus("happy");
+            playInteraction("happy", pick(actionLines.pet));
         }
         if (action === "feed") {
             state.energy += 10; state.mood += 3; state.bond += 1;
-            playStatus("eating");
+            playInteraction("eating", pick(actionLines.feed));
         }
         if (action === "chat") {
             state.bond += 5; state.mood += 2; state.energy -= 2;
-            setStatus("idle", true);
+            setStatus("idle");
+            say(pick(actionLines.chat));
+            scheduleNextBehavior();
         }
         saveAndRender(true);
-        say(pick(actionLines[action]));
     });
     function handleMotionPreference() {
-        moveSafely(true);
-        scheduleMove();
-        scheduleGlance();
+        clearTimeout(behaviorTimer);
+        setPosition(homePosition(), reduceMotion.matches ? 0 : 500);
+        setStatus("idle");
+        if (!reduceMotion.matches) scheduleNextBehavior(1200);
     }
     if (reduceMotion.addEventListener) {
         reduceMotion.addEventListener("change", handleMotionPreference);
     } else if (reduceMotion.addListener) {
         reduceMotion.addListener(handleMotionPreference);
     }
-    window.addEventListener("resize", function () { moveSafely(true); });
+    window.addEventListener("resize", function () {
+        setPosition(currentPosition, 300);
+    });
 
     saveAndRender(false);
+    setPosition(homePosition(), 0);
     updateSleepState();
-    setInterval(updateSleepState, 15000);
-    moveSafely(false);
-    scheduleMove();
-    scheduleGlance();
+    sleepTimer = setInterval(updateSleepState, 15000);
+    if (!reduceMotion.matches && currentStatus !== "sleepy" && currentStatus !== "sleeping") {
+        clearTimeout(behaviorTimer);
+        behaviorTimer = setTimeout(walk, 1200);
+    }
 })();

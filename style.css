@@ -243,6 +243,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .jinzhu-home {
     --jinzhu-x: 0px;
     --jinzhu-y: 0px;
+    --jinzhu-facing: 1;
+    --jinzhu-walk-duration: 5s;
     position: relative;
     flex: 0 0 158px;
     min-height: 142px;
@@ -254,12 +256,15 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     z-index: 8;
 }
 .jinzhu-walker {
-    position: relative;
+    position: fixed;
+    left: 0;
+    top: 0;
     width: 116px;
     height: 116px;
     transform: translate3d(var(--jinzhu-x), var(--jinzhu-y), 0);
-    transition: transform 7s cubic-bezier(.45, .05, .35, 1);
+    transition: transform var(--jinzhu-walk-duration) cubic-bezier(.42, .05, .32, 1);
     will-change: transform;
+    z-index: 20;
 }
 .jinzhu-cat {
     width: 116px;
@@ -271,6 +276,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     filter: drop-shadow(0 9px 9px rgba(0, 0, 0, .38));
+    transform: scaleX(var(--jinzhu-facing));
+    transition: transform .18s ease;
 }
 .jinzhu-cat img {
     width: 108px;
@@ -283,7 +290,9 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .jinzhu-cat:focus-visible { outline: 2px solid rgba(255,255,255,.75); outline-offset: 3px; }
 .jinzhu-cat:active img { transform: scale(.96); }
 .jinzhu-home.idle .jinzhu-cat img { animation: jinzhu-breathe 3.8s ease-in-out infinite; }
-.jinzhu-home.idle.glance .jinzhu-cat img { animation: jinzhu-glance 1.2s ease-in-out 1; }
+.jinzhu-home.look-around .jinzhu-cat img { animation: jinzhu-glance 1.25s ease-in-out 2; }
+.jinzhu-home.grooming .jinzhu-cat img { animation: jinzhu-grooming .72s ease-in-out infinite; }
+.jinzhu-home.walk .jinzhu-cat img { animation: jinzhu-walk-step .58s ease-in-out infinite; }
 .jinzhu-home.happy .jinzhu-cat img { animation: jinzhu-happy .55s ease-in-out 3; }
 .jinzhu-home.eating .jinzhu-cat img { animation: jinzhu-eating .42s ease-in-out 5; }
 .jinzhu-home.sleepy .jinzhu-cat img {
@@ -294,8 +303,6 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     filter: brightness(.62);
     animation: jinzhu-sleeping 7.5s ease-in-out infinite;
 }
-.jinzhu-home.sleepy .jinzhu-walker { transition-duration: 11s; }
-.jinzhu-home.sleeping .jinzhu-walker { transition-duration: 14s; }
 .jinzhu-bubble {
     position: absolute;
     left: 50%;
@@ -360,6 +367,15 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     30% { transform: rotate(-2.5deg) translateY(1px); }
     68% { transform: rotate(2deg); }
 }
+@keyframes jinzhu-grooming {
+    0%, 100% { transform: translate(0, 0) rotate(0) scale(1); }
+    35% { transform: translate(-3px, 4px) rotate(-3deg) scale(.985, 1.015); }
+    70% { transform: translate(3px, 3px) rotate(2deg) scale(1.01, .985); }
+}
+@keyframes jinzhu-walk-step {
+    0%, 100% { transform: translateY(0) scaleY(1); }
+    50% { transform: translateY(-3px) scaleY(.985); }
+}
 @keyframes jinzhu-happy {
     0%, 100% { transform: translateY(0) scale(1) rotate(0); }
     45% { transform: translateY(-7px) scale(1.055, .96) rotate(-1.5deg); }
@@ -377,7 +393,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     50% { transform: translateY(5px) scale(.925, .95); }
 }
 @media (prefers-reduced-motion: reduce) {
-    .jinzhu-walker { transform: none !important; transition: none; will-change: auto; }
+    .jinzhu-walker { transition: none; will-change: auto; }
     .jinzhu-home .jinzhu-cat img { animation: none !important; }
 }
 
