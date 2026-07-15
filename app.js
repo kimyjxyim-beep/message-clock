@@ -29,6 +29,7 @@ function flipUpdate(prefix, newValue) {
 }
 
 function updateTheme(hour) {
+    if (window.JINZHU_WORLD_V1) return;
     var body = document.body;
     var newTheme = "";
     
@@ -82,17 +83,32 @@ function weatherCodeToInfo(code) {
 }
 
 function fetchWeather() {
-    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WEATHER_LAT + "&longitude=" + WEATHER_LON + "&current_weather=true";
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WEATHER_LAT + "&longitude=" + WEATHER_LON +
+        "&current=temperature_2m,weather_code,precipitation,rain,showers&daily=sunrise,sunset&timezone=auto&forecast_days=1";
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url, true);
     xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300) {
             try {
                 var data = JSON.parse(xhr.responseText);
-                if (data && data.current_weather) {
-                    var temp = Math.round(data.current_weather.temperature);
-                    var info = weatherCodeToInfo(data.current_weather.weathercode);
+                var current = data && (data.current || data.current_weather);
+                if (current) {
+                    var code = current.weather_code !== undefined ? current.weather_code : current.weathercode;
+                    var temperature = current.temperature_2m !== undefined ? current.temperature_2m : current.temperature;
+                    var temp = Math.round(temperature);
+                    var info = weatherCodeToInfo(code);
                     document.getElementById("weather").innerHTML = info.emoji + " " + WEATHER_CITY_NAME + " " + temp + "°C";
+                    window.dispatchEvent(new CustomEvent("jinzhu:weather", { detail: {
+                        code: Number(code),
+                        temperature: Number(temperature),
+                        precipitation: Number(current.precipitation || 0),
+                        rain: Number(current.rain || 0),
+                        showers: Number(current.showers || 0),
+                        sunrise: data.daily && data.daily.sunrise ? data.daily.sunrise[0] : null,
+                        sunset: data.daily && data.daily.sunset ? data.daily.sunset[0] : null,
+                        timezone: data.timezone || "Asia/Shanghai",
+                        utcOffsetSeconds: Number(data.utc_offset_seconds || 28800)
+                    } }));
                 }
             } catch (e) {}
         }

@@ -11,12 +11,13 @@
     var panel = document.getElementById("jinzhu-panel");
     if (!home || !walker || !cat || !catImage || !bubble || !panel) return;
 
-    var params = new URLSearchParams(location.search);
+    var params = queryParameters(location.search);
     var debugMode = params.get("jinzhuDebug") === "1";
     var debugHour = Number(params.get("jinzhuHour"));
     var debugAction = params.get("jinzhuAction");
     var debugPoint = params.get("jinzhuPoint");
     var storageKey = debugMode ? "messageClockJinzhuStateDebug" : "messageClockJinzhuState";
+    var petStorage = new window.LocalStorageAdapter("");
     var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     var behaviorTimer = null;
     var spriteTimer = null;
@@ -26,10 +27,15 @@
     var currentPosition = { x: 0, y: 0 };
     var lastTapAt = 0;
     var introWalkPending = false;
+    var pendingEatingDuration = 10000;
+    var rainActive = false;
+    var reminderActive = false;
+    var ownerMood = "normal";
+    var companionMode = "normal";
     var spriteBase = "assets/jinzhu/";
     var behaviorClasses = [
         "sleeping", "sleepy", "idle", "look-around", "grooming",
-        "walking", "playing", "eating", "happy"
+        "walking", "playing", "eating", "happy", "rain", "heat", "fan"
     ];
     var sprites = {
         idle: ["idle-1.png", "idle-2.png", "idle-3.png", "idle-5.png", "idle-2.png"],
@@ -38,13 +44,16 @@
         grooming: ["groom-1.png", "groom-2.png", "groom-3.png", "groom-4.png", "groom-1.png"],
         playing: ["roll-1.png", "roll-2.png", "roll-3.png", "roll-4.png", "roll-5.png", "roll-6.png"],
         happy: ["happy-1.png", "happy-2.png", "happy-3.png", "happy-4.png", "happy-2.png"],
-        eating: ["groom-1.png", "groom-4.png", "groom-1.png", "groom-4.png"],
+        eating: ["eat-1.png", "eat-2.png", "eat-3.png", "eat-4.png", "eat-5.png"],
         sleepy: ["idle-3.png", "idle-4.png"],
-        sleeping: ["sleep-1.png"]
+        sleeping: ["sleep-curl-1.png", "sleep-curl-2.png", "sleep-curl-1.png", "sleep-curl-3.png"],
+        rain: ["rain-1.png", "rain-2.png", "rain-3.png", "rain-2.png"],
+        heat: ["heat-1.png"],
+        fan: ["fan-1.png", "fan-2.png", "fan-3.png", "fan-2.png"]
     };
     var spriteSpeeds = {
         idle: 1100, walking: 145, "look-around": 700, grooming: 760,
-        playing: 420, happy: 330, eating: 620, sleepy: 1800, sleeping: 3200
+        playing: 420, happy: 330, eating: 620, sleepy: 1800, sleeping: 3200, rain: 1100, fan: 620
     };
     var now = Date.now();
     var state = {
@@ -63,8 +72,19 @@
         positionY: .68
     };
 
+    function queryParameters(search) {
+        return { get: function (name) {
+            var query = String(search || "").replace(/^\?/, "").split("&");
+            for (var i = 0; i < query.length; i++) {
+                var pair = query[i].split("=");
+                if (decodeURIComponent(pair[0] || "") === name) return decodeURIComponent((pair[1] || "").replace(/\+/g, " "));
+            }
+            return null;
+        } };
+    }
+
     try {
-        var saved = JSON.parse(localStorage.getItem(storageKey));
+        var saved = petStorage.get(storageKey, null);
         if (saved && typeof saved === "object") {
             Object.keys(state).forEach(function (key) {
                 if (saved[key] !== undefined) state[key] = saved[key];
@@ -138,7 +158,7 @@
         state.fullness = clamp(state.fullness);
         state.bond = clamp(state.bond);
         try {
-            localStorage.setItem(storageKey, JSON.stringify(state));
+            petStorage.set(storageKey, state);
         } catch (e) {}
     }
 
@@ -175,6 +195,20 @@
         var index = 0;
         catImage.src = spriteBase + frames[0];
         if (document.hidden || reduceMotion.matches || frames.length < 2) return;
+        if (status === "eating") {
+            var eatingStep = Math.max(900, (pendingEatingDuration - 2000) / 4);
+            spriteTimer = setInterval(function () {
+                index++;
+                if (index >= frames.length - 1) {
+                    clearInterval(spriteTimer);
+                    spriteTimer = null;
+                    catImage.src = spriteBase + frames[frames.length - 1];
+                    return;
+                }
+                catImage.src = spriteBase + frames[index];
+            }, eatingStep);
+            return;
+        }
         spriteTimer = setInterval(function () {
             index = (index + 1) % frames.length;
             catImage.src = spriteBase + frames[index];
@@ -189,6 +223,7 @@
         playSprite(status);
         renderStats();
         saveState();
+        window.dispatchEvent(new CustomEvent("jinzhu:status", { detail: { status: status } }));
     }
 
     function say(text, persistent) {
@@ -211,14 +246,14 @@
         renderStats();
     }
 
-    function schedule(milliseconds, callback) {
+    function schedule(milliseconds, callback, exactDuration) {
         clearTimeout(behaviorTimer);
         var generation = ++schedulerGeneration;
         behaviorTimer = setTimeout(function () {
             if (generation !== schedulerGeneration || document.hidden) return;
             behaviorTimer = null;
             callback();
-        }, scaledDuration(milliseconds));
+        }, exactDuration ? milliseconds : scaledDuration(milliseconds));
         renderStats();
     }
 
@@ -264,6 +299,7 @@
         state.positionX = bounds.maxX > bounds.minX ? (safe.x - bounds.minX) / (bounds.maxX - bounds.minX) : 0;
         state.positionY = bounds.maxY > bounds.minY ? (safe.y - bounds.minY) / (bounds.maxY - bounds.minY) : 0;
         if (persist !== false) saveState();
+        window.dispatchEvent(new CustomEvent("jinzhu:position", { detail: { x: safe.x, y: safe.y } }));
     }
 
     function restoredPosition() {
@@ -324,7 +360,7 @@
 
     function prepareOverlays() {
         var b = getViewportBounds();
-        var panelHalf = 116;
+        var panelHalf = Math.min(150, (window.innerWidth - 16) / 2);
         var centeredX = Math.max(panelHalf + 8, Math.min(window.innerWidth - panelHalf - 8,
             currentPosition.x + (walker.offsetWidth || 116) / 2));
         if (!panel.hidden) setPosition({ x: centeredX - (walker.offsetWidth || 116) / 2, y: currentPosition.y }, 180, false);
@@ -415,6 +451,52 @@
         schedule(randomBetween(5, 10) * 1000, function () { idleFor(45, 120); });
     }
 
+    function startRainWatching() {
+        if (!rainActive || currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy") return false;
+        clearScheduler();
+        setStatus("rain");
+        var rainDuration = debugMode ? 4000 : randomBetween(8, 15) * 1000;
+        schedule(rainDuration, function () { idleFor(45, 120); }, debugMode);
+        return true;
+    }
+
+    function requestRain(active) {
+        rainActive = !!active;
+        if (!rainActive) {
+            if (currentStatus === "rain") {
+                clearScheduler();
+                catImage.src = spriteBase + "rain-4.png";
+                schedule(900, function () { idleFor(30, 75); });
+            }
+            return true;
+        }
+        return startRainWatching();
+    }
+
+    function requestHeat(active) {
+        if (!active) {
+            if (currentStatus === "heat") idleFor(30, 75);
+            return true;
+        }
+        if (currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "rain" || currentStatus === "grooming") return false;
+        clearScheduler();
+        setStatus("heat");
+        return true;
+    }
+
+    function activateCooling(kind) {
+        clearScheduler();
+        if (kind === "fan") {
+            setStatus("fan");
+            say("風扇開咗，舒服晒。");
+            schedule(12000, function () { idleFor(45, 100); }, true);
+        } else {
+            setStatus("happy");
+            say("冷氣開咗，唔該主人。");
+            schedule(3000, function () { idleFor(45, 100); }, true);
+        }
+    }
+
     function forceDebugAction(action) {
         if (action === "sleeping") startSleeping();
         else if (action === "sleepy") startSleepy();
@@ -426,6 +508,7 @@
     }
 
     function chooseNextBehavior() {
+        if (reminderActive) return;
         applyElapsedTime();
         renderStats();
         saveState();
@@ -435,7 +518,12 @@
             forceDebugAction(action);
             return;
         }
+        if (rainActive && Math.random() < .18 && startRainWatching()) return;
         var action = weightedChoice(behaviorWeights());
+        if (companionMode === "quiet" && (action === "walking" || action === "playing")) action = "idle";
+        if (companionMode === "strict" && action === "idle" && Math.random() < .35) action = "look-around";
+        if ((ownerMood === "tired" || ownerMood === "annoyed" || ownerMood === "private") && (action === "walking" || action === "playing")) action = "idle";
+        if (ownerMood === "happy" && (routinePeriod() === "morning" || routinePeriod() === "evening") && action === "idle" && Math.random() < .35) action = "playing";
         if (state.fullness < 18 && (action === "playing" || action === "walking")) action = "idle";
         if (action === "sleeping") startSleeping();
         else if (action === "sleepy") startSleepy();
@@ -455,11 +543,11 @@
         return true;
     }
 
-    function finishInteraction(milliseconds) {
+    function finishInteraction(milliseconds, exactDuration) {
         schedule(milliseconds, function () {
             setStatus(routinePeriod() === "night" ? "sleepy" : "idle");
             schedule(routinePeriod() === "night" ? randomBetween(15, 40) * 1000 : randomBetween(30, 90) * 1000, chooseNextBehavior);
-        });
+        }, exactDuration);
     }
 
     cat.addEventListener("click", function () {
@@ -496,6 +584,7 @@
             setStatus("happy");
             say("摸多兩下都可以嘅。");
             finishInteraction(2000);
+            window.dispatchEvent(new CustomEvent("jinzhu:interaction", { detail: { action: "pet" } }));
         }
 
         if (action === "feed") {
@@ -509,9 +598,11 @@
                 state.fullness = clamp(state.fullness + 30);
                 state.mood = clamp(state.mood + 3);
                 state.energy = clamp(state.energy + 2);
+                pendingEatingDuration = randomBetween(8, 15) * 1000;
                 setStatus("eating");
                 say("食齋食齋！！🌱🥬");
-                finishInteraction(randomBetween(8, 15) * 1000);
+                finishInteraction(pendingEatingDuration, true);
+                window.dispatchEvent(new CustomEvent("jinzhu:interaction", { detail: { action: "feed" } }));
             }
         }
 
@@ -523,6 +614,7 @@
             setStatus("idle");
             say(reply);
             schedule(randomBetween(30, 90) * 1000, chooseNextBehavior);
+            window.dispatchEvent(new CustomEvent("jinzhu:interaction", { detail: { action: "chat" } }));
         }
 
         renderStats();
@@ -584,6 +676,42 @@
             schedule(randomBetween(12, 30) * 1000, chooseNextBehavior);
         }
     }
+
+    window.JinzhuBridge = {
+        getStatus: function () { return currentStatus; },
+        getState: function () {
+            return {
+                mood: state.mood, energy: state.energy, fullness: state.fullness, bond: state.bond,
+                positionX: state.positionX, positionY: state.positionY, status: currentStatus
+            };
+        },
+        isBusy: function () {
+            return currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "fan";
+        },
+        say: say,
+        requestRain: requestRain,
+        requestHeat: requestHeat,
+        activateCooling: activateCooling,
+        setQuietMode: function (quiet) {
+            if (quiet) state.nextWalkAllowed = Date.now() + randomBetween(120, 300) * 1000;
+            saveState();
+        },
+        setOwnerMood: function (mood) { ownerMood = mood || "normal"; },
+        setCompanionMode: function (mode) {
+            companionMode = mode || "normal";
+            if (companionMode === "quiet") state.nextWalkAllowed = Date.now() + randomBetween(180, 360) * 1000;
+            saveState();
+        },
+        setReminder: function (active) {
+            reminderActive = !!active;
+            if (reminderActive) {
+                clearScheduler();
+                if (currentStatus !== "eating" && currentStatus !== "sleeping" && currentStatus !== "happy" && currentStatus !== "rain" && currentStatus !== "heat" && currentStatus !== "fan") setStatus("idle");
+            } else if (!document.hidden && currentStatus === "idle") {
+                schedule(randomBetween(30, 75) * 1000, chooseNextBehavior);
+            }
+        }
+    };
 
     renderStats();
     setPosition(restoredPosition(), 0, false);

@@ -5,7 +5,14 @@
 }
 
 :root {
+    --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --sky-a: #07111f;
+    --sky-b: #152b4a;
+    --card-bg: rgba(38,45,61,.64);
+    --text-main: #f7f8ff;
+    --border-color: rgba(255,255,255,.1);
+    --shadow-color: rgba(0,0,0,.44);
 }
 
 body {
@@ -18,7 +25,8 @@ body {
     overflow-y: auto; 
     overflow-x: hidden;
     transition: background 2s ease;
-    background: #1c1c1e;
+    background: linear-gradient(155deg, #07111f, #152b4a) fixed;
+    background: linear-gradient(155deg, var(--sky-a), var(--sky-b)) fixed;
 }
 
 /* 主題顏色 */
@@ -208,13 +216,16 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .left-col, .right-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 
 .card {
-    background: rgba(58,58,60,.55);
+    background: rgba(38,45,61,.64);
+    background: var(--card-bg);
     border-radius: 24px;
     padding: 28px;
     -webkit-backdrop-filter: blur(28px);
     backdrop-filter: blur(28px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 18px 45px rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.1);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 18px 45px rgba(0,0,0,.44);
+    box-shadow: 0 18px 45px var(--shadow-color);
 }
 
 .weather-card { flex: 1; display: flex; flex-direction: column; justify-content: center; }
@@ -286,6 +297,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     transform: scaleX(var(--jinzhu-facing));
     transition: transform .18s ease;
     pointer-events: auto;
+    outline: none;
+    box-shadow: none;
 }
 .jinzhu-cat img {
     width: 108px;
@@ -295,7 +308,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     margin: auto;
     transform-origin: 50% 82%;
 }
-.jinzhu-cat:focus-visible { outline: 2px solid rgba(255,255,255,.75); outline-offset: 3px; }
+.jinzhu-debug-mode .jinzhu-cat:focus { outline: 2px dashed rgba(255,255,255,.75); outline-offset: 3px; }
 .jinzhu-cat:active img { transform: scale(.96); }
 .jinzhu-home.idle .jinzhu-cat img { animation: jinzhu-breathe 3.8s ease-in-out infinite; }
 .jinzhu-home.look-around .jinzhu-cat img { animation: jinzhu-glance 1.25s ease-in-out 2; }
@@ -303,14 +316,14 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .jinzhu-home.walking .jinzhu-cat img { animation: jinzhu-walk-step .58s ease-in-out infinite; }
 .jinzhu-home.playing .jinzhu-cat img { animation: jinzhu-playful .8s ease-in-out infinite; }
 .jinzhu-home.happy .jinzhu-cat img { animation: jinzhu-happy .55s ease-in-out 3; }
-.jinzhu-home.eating .jinzhu-cat img { animation: jinzhu-eating .42s ease-in-out 5; }
+.jinzhu-home.eating .jinzhu-cat img { animation: none; }
 .jinzhu-home.sleepy .jinzhu-cat img {
     filter: brightness(.76);
     animation: jinzhu-sleepy 6.5s ease-in-out infinite;
 }
 .jinzhu-home.sleeping .jinzhu-cat img {
-    filter: brightness(.62);
-    animation: jinzhu-sleeping 7.5s ease-in-out infinite;
+    filter: brightness(.82);
+    animation: none;
 }
 .jinzhu-bubble {
     position: absolute;
@@ -343,7 +356,11 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .jinzhu-panel {
     position: absolute;
     left: 50%; top: calc(100% + 7px);
-    width: 224px;
+    width: 280px;
+    width: min(300px, calc(100vw - 16px));
+    max-height: 560px;
+    max-height: min(68dvh, 560px);
+    overflow-y: auto;
     padding: 11px;
     border: 1px solid rgba(255,255,255,.1);
     border-radius: 16px;
@@ -382,6 +399,93 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     cursor: pointer;
 }
 .jinzhu-actions button:active { background: rgba(255,255,255,.18); }
+.jinzhu-world-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-top: 9px;
+}
+.jinzhu-world-actions button,
+.jinzhu-choice-grid button,
+.jinzhu-reminder button,
+.jinzhu-panel select {
+    min-height: 44px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    padding: 8px;
+}
+#jinzhu-world-controls section { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.1); }
+#jinzhu-world-controls h3 { margin-bottom: 7px; font-size: 13px; }
+#jinzhu-world-controls p, #jinzhu-world-controls li, #jinzhu-world-controls label { font-size: 12px; line-height: 1.45; }
+#jinzhu-world-controls ul { padding-left: 18px; margin-top: 6px; }
+#jinzhu-world-controls select { width: 100%; margin: 6px 0; }
+.jinzhu-choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
+.jinzhu-reminder {
+    position: absolute;
+    top: 0;
+    width: min(280px, calc(100vw - 16px));
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 15px;
+    background: rgba(31,38,51,.96);
+    box-shadow: 0 14px 34px rgba(0,0,0,.42);
+    pointer-events: auto;
+}
+.bubble-right .jinzhu-reminder { left: calc(100% + 7px); }
+.bubble-left .jinzhu-reminder { right: calc(100% + 7px); }
+.jinzhu-reminder p { font-size: 13px; margin-bottom: 9px; }
+.jinzhu-reminder div { display: flex; gap: 5px; }
+.jinzhu-reminder button { flex: 1; font-size: 11px; }
+.sky-stars,
+.weather-effects {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+.sky-stars {
+    opacity: 0;
+    transition: opacity 2s ease;
+    background-image:
+        radial-gradient(circle at 12% 18%, rgba(255,255,255,.7) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 68% 12%, rgba(255,255,255,.55) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 84% 32%, rgba(255,255,255,.5) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 38% 28%, rgba(255,255,255,.4) 0 1px, transparent 1.5px);
+    background-size: 190px 170px, 240px 210px, 280px 250px, 320px 290px;
+}
+.sky-stars.show { opacity: .42; }
+.weather-effects[class*="rain-"] { background: linear-gradient(rgba(28,43,59,.11), rgba(24,38,54,.22)); }
+.weather-effects i {
+    position: absolute;
+    top: -12vh;
+    width: 1px;
+    height: 12vh;
+    background: linear-gradient(transparent, rgba(190,220,240,.5));
+    transform: rotate(8deg);
+    animation: weather-rain linear infinite;
+}
+.rain-heavy i, .rain-thunder i { width: 1.4px; background: linear-gradient(transparent, rgba(205,228,245,.68)); }
+@keyframes weather-rain { to { transform: translate3d(-5vw, 120vh, 0) rotate(8deg); } }
+.jinzhu-world-debug {
+    position: fixed;
+    left: 8px;
+    bottom: calc(42px + env(safe-area-inset-bottom, 0px));
+    z-index: 101;
+    max-width: calc(100vw - 16px);
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(0,0,0,.82);
+    color: #9edcff;
+    font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+    pointer-events: none;
+}
 .jinzhu-debug {
     position: fixed;
     left: 8px;
@@ -436,6 +540,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 @media (prefers-reduced-motion: reduce) {
     .jinzhu-walker { transition: none; will-change: auto; }
     .jinzhu-home .jinzhu-cat img { animation: none !important; }
+    .weather-effects i { display: none; }
+    .sky-stars, body { transition: none !important; }
 }
 
 /* ====================
