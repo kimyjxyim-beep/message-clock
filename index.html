@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="時鐘看板">
 <title>Message Clock</title>
 <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="style.css?v=world15">
+    <link rel="stylesheet" href="style.css?v=world21">
 </head>
 <body>
 
@@ -51,22 +51,22 @@
             <div class="jinzhu-walker" id="jinzhu-walker">
                 <div class="jinzhu-bubble" id="jinzhu-bubble" role="status" aria-live="polite">
                     <span id="jinzhu-bubble-text">我唔系宠物，我系金主。</span>
-                    <button id="jinzhu-bubble-menu" type="button" aria-label="打开金主菜单">菜单</button>
                 </div>
-                <button class="jinzhu-cat" id="jinzhu-cat" type="button" aria-label="同金主玩">
+                <button class="jinzhu-cat" id="jinzhu-cat" type="button" aria-label="同金主互动">
                     <img id="jinzhu-image" src="assets/jinzhu/idle-1.png" alt="金主，一隻白色貓貓" width="108" height="108">
                 </button>
-                <div class="jinzhu-panel" id="jinzhu-panel" hidden>
-                    <div class="jinzhu-stats" aria-label="金主狀態">
+                <div class="jinzhu-panel" id="jinzhu-panel" aria-label="和金主互动" hidden>
+                    <div class="jinzhu-stats" aria-hidden="true">
                         <span>心情 <b id="jinzhu-mood">72</b></span>
                         <span>能量 <b id="jinzhu-energy">68</b></span>
                         <span>饱腹 <b id="jinzhu-fullness">76</b></span>
                         <span>親密 <b id="jinzhu-bond">40</b></span>
                     </div>
                     <div class="jinzhu-actions">
-                        <button type="button" data-jinzhu-action="pet">摸摸</button>
-                        <button type="button" data-jinzhu-action="feed">餵食</button>
-                        <button type="button" data-jinzhu-action="chat">聊天</button>
+                        <button type="button" data-jinzhu-action="pet"><span aria-hidden="true">♡</span>摸摸</button>
+                        <button type="button" data-jinzhu-action="feed"><span aria-hidden="true">♨</span>餵食</button>
+                        <button type="button" data-jinzhu-action="chat"><span aria-hidden="true">…</span>講嘢</button>
+                        <button type="button" data-jinzhu-action="care"><span aria-hidden="true">◷</span>提醒</button>
                     </div>
                     <div id="jinzhu-world-controls"></div>
                 </div>
@@ -84,11 +84,11 @@
 
 </div>
 
-    <script src="config.js?v=world15"></script>
-    <script src="storage-adapter.js?v=world15"></script>
-    <script src="jinzhu-routine.js?v=world15"></script>
-    <script src="jinzhu-world.js?v=world15"></script>
-    <script src="app.js?v=world15"></script>
+    <script src="config.js?v=world21"></script>
+    <script src="storage-adapter.js?v=world21"></script>
+    <script src="jinzhu-routine.js?v=world21"></script>
+    <script src="jinzhu-world.js?v=world21"></script>
+    <script src="app.js?v=world21"></script>
 
 </body>
 </html>

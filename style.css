@@ -293,6 +293,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     background: transparent;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
     filter: drop-shadow(0 9px 9px rgba(0, 0, 0, .38));
     transform: scaleX(var(--jinzhu-facing));
     transition: transform .18s ease;
@@ -743,4 +745,144 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .card { padding: 20px; border-radius: 20px; }
     .weather-main { font-size: 28px; }
     .msg-item { font-size: 16px; }
+}
+
+/* 金主沉浸式互动：对白、动作和对话都保持轻量，不做控制台。 */
+.jinzhu-bubble {
+    width: auto;
+    min-width: 0;
+    max-width: 210px;
+    padding: 8px 11px;
+    border: 1px solid rgba(20, 25, 35, .08);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 7px 20px rgba(0, 0, 0, .20);
+    white-space: normal;
+    pointer-events: none !important;
+}
+.jinzhu-bubble #jinzhu-bubble-text { display: block; }
+.jinzhu-stats { display: none; }
+.jinzhu-panel {
+    width: 278px;
+    max-width: calc(100vw - 16px);
+    max-height: none;
+    overflow: visible;
+    padding: 6px;
+    border: 1px solid rgba(30, 35, 45, .10);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .94);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 9px 26px rgba(0, 0, 0, .24);
+}
+.jinzhu-actions { display: flex; gap: 5px; }
+.jinzhu-actions button {
+    min-width: 0;
+    min-height: 48px;
+    padding: 5px 4px;
+    border: 0;
+    border-radius: 13px;
+    background: rgba(21, 28, 40, .07);
+    color: #202632;
+    font-size: 12px;
+    line-height: 1.1;
+}
+.jinzhu-actions button span {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 16px;
+    line-height: 1;
+}
+.jinzhu-actions button:active { background: rgba(21, 28, 40, .15); }
+#jinzhu-world-controls { color: #202632; }
+#jinzhu-world-controls section {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+.jinzhu-panel.jinzhu-chat-open,
+.jinzhu-panel.jinzhu-care-open {
+    width: 320px;
+    max-width: calc(100vw - 16px);
+    max-height: 35vh;
+    max-height: 35dvh;
+    overflow-y: auto;
+    padding: 10px;
+}
+.jinzhu-panel.jinzhu-care-open { width: 276px; }
+.jinzhu-panel.jinzhu-chat-open .jinzhu-actions,
+.jinzhu-panel.jinzhu-care-open .jinzhu-actions { display: none; }
+.panel-heading { margin-bottom: 4px; }
+.panel-heading h3 { color: #202632; font-size: 13px; font-weight: 650; }
+.panel-heading button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(21, 28, 40, .07);
+    color: #202632;
+    font-size: 20px;
+}
+.local-chat-note { margin: 0 0 5px; color: rgba(32, 38, 50, .58); font-size: 10px !important; }
+.jinzhu-chat-history {
+    min-height: 54px;
+    max-height: 104px;
+    overflow-y: auto;
+    padding: 3px;
+    border-radius: 0;
+    background: transparent;
+}
+.chat-line {
+    display: table;
+    width: auto;
+    width: fit-content;
+    max-width: 88%;
+    margin: 0 0 5px;
+    padding: 6px 8px;
+    border-radius: 11px;
+    color: #202632 !important;
+    background: rgba(21, 28, 40, .07);
+    font-size: 12px !important;
+}
+.chat-line.user { margin-left: auto; background: rgba(99, 159, 216, .18); }
+.jinzhu-chat-topics { display: none; }
+.jinzhu-chat-form { gap: 5px; margin-top: 5px; }
+.jinzhu-chat-form input {
+    min-height: 44px;
+    border: 1px solid rgba(21, 28, 40, .11);
+    border-radius: 13px;
+    background: rgba(21, 28, 40, .05);
+    color: #202632;
+}
+.jinzhu-chat-form button {
+    flex: 0 0 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 13px;
+    background: #e9eef5;
+    color: #202632;
+}
+.jinzhu-care-grid { display: grid; grid-template-columns: 1fr 88px; gap: 6px; align-items: center; }
+.jinzhu-care-grid label { color: #202632; }
+.jinzhu-care-grid select {
+    min-height: 44px;
+    margin: 0 !important;
+    border: 1px solid rgba(21, 28, 40, .11);
+    background: rgba(21, 28, 40, .05);
+    color: #202632;
+}
+.jinzhu-care-grid .toggle-row { min-height: 44px; }
+
+@media (max-width: 600px) {
+    .jinzhu-bubble { width: auto; max-width: 180px; bottom: 52px; }
+    .jinzhu-panel { top: 112px; }
+    .jinzhu-home.panel-above .jinzhu-panel { top: auto; bottom: 112px; }
+    .jinzhu-panel.jinzhu-chat-open,
+    .jinzhu-panel.jinzhu-care-open {
+        max-height: 35vh;
+        max-height: 35dvh;
+    }
 }

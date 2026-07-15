@@ -21,7 +21,7 @@
     var catImage = document.getElementById("jinzhu-image");
     var bubble = document.getElementById("jinzhu-bubble");
     var bubbleText = document.getElementById("jinzhu-bubble-text");
-    var bubbleMenu = document.getElementById("jinzhu-bubble-menu");
+    var bubbleMenu = null;
     var panel = document.getElementById("jinzhu-panel");
     if (!home || !walker || !cat || !catImage || !bubble || !panel) return;
 
@@ -32,6 +32,7 @@
     var debugDelayedAction = debugMode && params.get("jinzhuDelay") === "1";
     var debugNoClimb = debugMode && params.get("jinzhuNoClimb") === "1";
     var debugOpenPanel = debugMode && params.get("jinzhuPanel") === "1";
+    var debugClickOutcome = debugMode ? params.get("jinzhuClick") : null;
     var debugHour = Number(params.get("jinzhuHour"));
     var debugAction = params.get("jinzhuAction");
     var debugPoint = params.get("jinzhuPoint");
@@ -48,8 +49,17 @@
     var legacyMoveFrame = null;
     var legacyMoveToken = 0;
     var lastTapAt = 0;
+    var catClickTimer = null;
+    var lastCatClickAt = 0;
+    var longPressTimer = null;
+    var longPressTriggered = false;
+    var suppressClickUntil = 0;
+    var pressStart = null;
+    var panelTimer = null;
+    var feedingPending = false;
     var tapAwayPending = false;
     var tapAwayTimer = null;
+    window.JINZHU_IMMERSIVE = true;
     var introWalkPending = false;
     var pendingEatingDuration = 10000;
     var rainActive = false;
@@ -261,7 +271,6 @@
         currentStatus = status;
         state.behavior = status;
         state.lastAction = status;
-        if (bubbleMenu) bubbleMenu.hidden = status === "sleeping" || status === "eating";
         if (previousStatus === "sleeping" && status !== "sleeping") {
             clearTimeout(bubbleTimer);
             bubble.classList.remove("show");
@@ -275,11 +284,14 @@
     function say(text, persistent) {
         prepareOverlays();
         var spaceOnRight = window.innerWidth - (currentPosition.x + walker.offsetWidth);
-        home.classList.toggle("bubble-right", spaceOnRight >= 126);
-        home.classList.toggle("bubble-left", spaceOnRight < 126);
+        var bubbleWidth = Math.min(window.innerWidth - 16, window.innerWidth <= 600 ? 180 : 210);
+        var spaceOnLeft = currentPosition.x;
+        var useRight = spaceOnRight >= bubbleWidth + 8;
+        var useLeft = !useRight && spaceOnLeft >= bubbleWidth + 8;
+        home.classList.toggle("bubble-right", useRight);
+        home.classList.toggle("bubble-left", useLeft);
         if (bubbleText) bubbleText.textContent = text;
         else bubble.textContent = text;
-        if (bubbleMenu) bubbleMenu.hidden = currentStatus === "sleeping" || currentStatus === "eating";
         bubble.classList.add("show");
         clearTimeout(bubbleTimer);
         if (!persistent) {
@@ -549,13 +561,14 @@
     }
 
     function prepareOverlays() {
-        var b = getViewportBounds();
-        var panelHalf = Math.min(150, (window.innerWidth - 16) / 2);
+        var desiredPanelWidth = panel.classList.contains("jinzhu-chat-open") ? 320 : panel.classList.contains("jinzhu-care-open") ? 276 : 278;
+        var panelHalf = Math.min(desiredPanelWidth / 2, (window.innerWidth - 16) / 2);
         var centeredX = Math.max(panelHalf + 8, Math.min(window.innerWidth - panelHalf - 8,
             currentPosition.x + (walker.offsetWidth || 116) / 2));
-        if (!panel.hidden) setPosition({ x: centeredX - (walker.offsetWidth || 116) / 2, y: currentPosition.y }, 180, false);
+        if (!panel.hidden) setPosition({ x: centeredX - (walker.offsetWidth || 116) / 2, y: currentPosition.y }, 0, false);
         var panelHeight = panel.hidden ? 132 : Math.min(panel.scrollHeight || panel.offsetHeight || 240, window.innerHeight * .68);
-        home.classList.toggle("panel-above", currentPosition.y + (walker.offsetHeight || 116) + panelHeight > window.innerHeight - 8);
+        var overlayBottomGap = window.innerWidth <= 600 ? 36 : 8;
+        home.classList.toggle("panel-above", currentPosition.y + (walker.offsetHeight || 116) + panelHeight > window.innerHeight - overlayBottomGap);
     }
 
     function weightedChoice(entries) {
@@ -812,9 +825,11 @@
         saveState();
     }
 
+    if (!window.JINZHU_IMMERSIVE) {
     cat.addEventListener("click", function (event) {
         event.preventDefault();
         event.stopPropagation();
+        if (window.JINZHU_IMMERSIVE) return;
         if (currentStatus === "walking" || climbing || currentStatus === "climbing" || currentStatus === "climbing-down") {
             lastTapAt = Date.now();
             stopMovementAndOpenMenu();
@@ -850,6 +865,7 @@
     });
 
     panel.addEventListener("click", function (event) {
+        if (window.JINZHU_IMMERSIVE) return;
         var button = event.target.closest("[data-jinzhu-action]");
         if (!button) return;
         event.stopPropagation();
@@ -897,6 +913,245 @@
 
         renderStats();
         saveState();
+    });
+
+    }
+
+    function markImmersiveInteraction() {
+        state.lastInteraction = Date.now();
+        applyElapsedTime();
+    }
+
+    function immersiveLine(category, fallback) {
+        if (window.JinzhuWorld && window.JinzhuWorld.getInteractionReply) return window.JinzhuWorld.getInteractionReply(category);
+        return fallback;
+    }
+
+    function openInteractions(message) {
+        clearScheduler();
+        clearTimeout(panelTimer);
+        panel.hidden = false;
+        panel.classList.remove("jinzhu-chat-open", "jinzhu-care-open");
+        if (window.JinzhuWorld && window.JinzhuWorld.showActions) window.JinzhuWorld.showActions();
+        prepareOverlays();
+        if (currentStatus !== "sleeping" && currentStatus !== "eating") setStatus("idle");
+        say(message || (state.fullness < 25 ? "个饭碗好似空咗喔。" : "想同我玩一阵呀？"));
+        panelTimer = setTimeout(function () {
+            if (!panel.classList.contains("jinzhu-chat-open") && !panel.classList.contains("jinzhu-care-open")) closeInteractions();
+        }, 15000);
+    }
+
+    function closeInteractions(skipSchedule) {
+        clearTimeout(panelTimer);
+        panel.hidden = true;
+        panel.classList.remove("jinzhu-chat-open", "jinzhu-care-open");
+        if (window.JinzhuWorld && window.JinzhuWorld.closeOverlay) window.JinzhuWorld.closeOverlay();
+        if (!skipSchedule && !document.hidden && currentStatus !== "sleeping" && currentStatus !== "eating") {
+            schedule(randomBetween(30, 90) * 1000, chooseNextBehavior);
+        }
+    }
+
+    function stopMovementAndLook() {
+        var rect = walker.getBoundingClientRect();
+        climbing = false;
+        perched = false;
+        home.classList.remove("on-clock");
+        setPosition({ x: rect.left, y: rect.top }, 0);
+        clearScheduler();
+        setStatus("look-around");
+        say("做咩叫住我呀？");
+        schedule(4000, function () { idleFor(45, 100); }, true);
+    }
+
+    function startImmersiveRun() {
+        clearScheduler();
+        if (!debugNoClimb && Math.random() < .16 && startClockClimb(false)) return;
+        var replies = ["我行过嚟睇下你。", "我去第二度坐阵。", "借借，我巡下屋企。", "唔好成日撳我呀。"];
+        var duration = scaledDuration(randomBetween(2, 5) * 1000);
+        setStatus("walking");
+        say(replies[Math.floor(Math.random() * replies.length)]);
+        setPosition(randomRoamingPosition(), duration);
+        schedule(duration + 120, function () {
+            var arrivals = ["idle", "look-around", "grooming"];
+            var arrival = arrivals[Math.floor(Math.random() * arrivals.length)];
+            setStatus(arrival);
+            schedule(arrival === "grooming" ? 7000 : 5000, function () { idleFor(45, 120); });
+        }, true);
+        saveState();
+    }
+
+    function petJinzhu() {
+        markImmersiveInteraction();
+        closeInteractions(true);
+        clearScheduler();
+        state.mood = clamp(state.mood + 5);
+        state.bond = clamp(state.bond + 3);
+        setStatus("happy");
+        say(immersiveLine("petted", "摸多两下都得嘅。"));
+        finishInteraction(2200, true);
+        window.dispatchEvent(new CustomEvent("jinzhu:interaction", { detail: { action: "pet" } }));
+        renderStats();
+        saveState();
+    }
+
+    function beginFeeding() {
+        markImmersiveInteraction();
+        closeInteractions(true);
+        clearScheduler();
+        var feedCooldown = debugMode ? 2500 : 15 * 60000;
+        if (state.fullness >= 85 || Date.now() - Number(state.lastFed || 0) < feedCooldown) {
+            setStatus("idle");
+            say("我饱啦，留返下一餐先。" );
+            schedule(randomBetween(30, 75) * 1000, chooseNextBehavior);
+            return;
+        }
+        feedingPending = true;
+        var bounds = getViewportBounds();
+        var direction = currentPosition.x < (bounds.minX + bounds.maxX) / 2 ? 1 : -1;
+        var bowlPoint = clampPosition({
+            x: currentPosition.x + direction * Math.min(100, Math.max(62, window.innerWidth * .16)),
+            y: Math.min(bounds.maxY, currentPosition.y + 18)
+        });
+        var walkDuration = scaledDuration(randomBetween(1.4, 2.2) * 1000);
+        setStatus("walking");
+        say("个饭碗喺前面，我行过去先。" );
+        setPosition(bowlPoint, walkDuration);
+        schedule(walkDuration + 120, function () {
+            state.lastFed = Date.now();
+            state.fullness = clamp(state.fullness + 30);
+            state.mood = clamp(state.mood + 3);
+            state.energy = clamp(state.energy + 2);
+            feedingPending = false;
+            pendingEatingDuration = randomBetween(8, 15) * 1000;
+            setStatus("eating");
+            say(immersiveLine("fed", "开饭啦，唔好望住我食。"));
+            finishInteraction(pendingEatingDuration, true);
+            window.dispatchEvent(new CustomEvent("jinzhu:interaction", { detail: { action: "feed" } }));
+            renderStats();
+            saveState();
+        }, true);
+    }
+
+    function handleImmersiveSingleClick() {
+        markImmersiveInteraction();
+        if (currentStatus === "walking" || climbing || currentStatus === "climbing" || currentStatus === "climbing-down") {
+            if (feedingPending) say("我去食饭呀，等阵先。" );
+            else stopMovementAndLook();
+            return;
+        }
+        if (currentStatus === "eating") {
+            say("食紧呀，等阵先。" );
+            return;
+        }
+        if (currentStatus === "sleeping") {
+            clearScheduler();
+            setStatus("sleepy");
+            say(routinePeriod() === "night" ? "嗯……我听到。" : "我醒啦。" );
+            closeInteractions(true);
+            finishInteraction(routinePeriod() === "night" ? 20000 : 5000);
+            return;
+        }
+        if (!panel.hidden) {
+            closeInteractions();
+            return;
+        }
+        var roll = debugClickOutcome === "talk" ? .20 : debugClickOutcome === "run" ? .70 : debugClickOutcome === "actions" ? .92 : Math.random();
+        if (roll < .60) {
+            var lines = state.fullness < 25 ? ["个饭碗好似空咗喔。", "有少少肚饿呀。"] :
+                ["我喺度陪你呀。", "今日有冇乖乖饮水？", "我行过嚟睇下你。", "你做你嘅，我坐阵先。", "做咩又搵我呀？"];
+            say(lines[Math.floor(Math.random() * lines.length)]);
+        } else if (roll < .85) startImmersiveRun();
+        else openInteractions();
+    }
+
+    function beginLongPress(clientX, clientY) {
+        clearTimeout(longPressTimer);
+        longPressTriggered = false;
+        pressStart = { x: clientX, y: clientY };
+        longPressTimer = setTimeout(function () {
+            longPressTriggered = true;
+            suppressClickUntil = Date.now() + 800;
+            openInteractions("我停低啦，想点呀？");
+        }, 560);
+    }
+
+    function moveLongPress(clientX, clientY) {
+        if (!pressStart) return;
+        if (Math.abs(clientX - pressStart.x) + Math.abs(clientY - pressStart.y) > 14) {
+            clearTimeout(longPressTimer);
+            pressStart = null;
+        }
+    }
+
+    function endLongPress() {
+        clearTimeout(longPressTimer);
+        pressStart = null;
+    }
+
+    if (window.PointerEvent) {
+        cat.addEventListener("pointerdown", function (event) { beginLongPress(event.clientX, event.clientY); });
+        cat.addEventListener("pointermove", function (event) { moveLongPress(event.clientX, event.clientY); });
+        cat.addEventListener("pointerup", endLongPress);
+        cat.addEventListener("pointercancel", endLongPress);
+    } else {
+        cat.addEventListener("touchstart", function (event) { var touch = event.touches[0]; if (touch) beginLongPress(touch.clientX, touch.clientY); }, { passive: true });
+        cat.addEventListener("touchmove", function (event) { var touch = event.touches[0]; if (touch) moveLongPress(touch.clientX, touch.clientY); }, { passive: true });
+        cat.addEventListener("touchend", endLongPress);
+        cat.addEventListener("touchcancel", endLongPress);
+    }
+    cat.addEventListener("mousedown", function (event) { beginLongPress(event.clientX, event.clientY); });
+    cat.addEventListener("mouseup", endLongPress);
+    cat.addEventListener("mouseleave", endLongPress);
+    cat.addEventListener("contextmenu", function (event) {
+        event.preventDefault();
+        suppressClickUntil = Date.now() + 800;
+        openInteractions("我停低啦，想点呀？");
+    });
+
+    cat.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (Date.now() < suppressClickUntil || longPressTriggered) {
+            longPressTriggered = false;
+            return;
+        }
+        var timestamp = Date.now();
+        if (timestamp - lastCatClickAt < 330) {
+            clearTimeout(catClickTimer);
+            catClickTimer = null;
+            lastCatClickAt = 0;
+            petJinzhu();
+            return;
+        }
+        lastCatClickAt = timestamp;
+        clearTimeout(catClickTimer);
+        catClickTimer = setTimeout(function () {
+            catClickTimer = null;
+            lastCatClickAt = 0;
+            handleImmersiveSingleClick();
+        }, 300);
+    });
+
+    panel.addEventListener("click", function (event) {
+        var button = event.target.closest("[data-jinzhu-action]");
+        if (!button) return;
+        event.stopPropagation();
+        if (Date.now() - lastTapAt < 180) return;
+        lastTapAt = Date.now();
+        var action = button.getAttribute("data-jinzhu-action");
+        if (action === "pet") petJinzhu();
+        if (action === "feed") beginFeeding();
+        if (action === "chat") {
+            markImmersiveInteraction();
+            setStatus("idle");
+            if (window.JinzhuWorld && window.JinzhuWorld.openChat) window.JinzhuWorld.openChat();
+            else say("同我讲句嘢啦。" );
+            window.dispatchEvent(new CustomEvent("jinzhu:interaction", { detail: { action: "chat" } }));
+        }
+        if (action === "care" && window.JinzhuWorld && window.JinzhuWorld.openCare) {
+            markImmersiveInteraction();
+            window.JinzhuWorld.openCare();
+        }
     });
 
     function recalculatePosition() {
@@ -976,11 +1231,14 @@
             };
         },
         isBusy: function () {
-            return currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "fan" || climbing || perched;
+                return feedingPending || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "fan" || climbing || perched;
         },
         say: say,
-        openMenu: openMenu,
-        closeMenu: closeMenu,
+        openInteractions: openInteractions,
+        closeInteractions: closeInteractions,
+        refreshOverlay: prepareOverlays,
+        openMenu: openInteractions,
+        closeMenu: closeInteractions,
         startClockClimb: function () { state.nextClimbAllowed = 0; return startClockClimb(true); },
         requestRain: requestRain,
         requestHeat: requestHeat,
@@ -1020,5 +1278,5 @@
     renderStats();
     setPosition(restoredPosition(), 0, false);
     restoreRoutine();
-    if (debugOpenPanel) setTimeout(function () { openMenu("调试互动菜单"); }, 60);
+    if (debugOpenPanel) setTimeout(function () { openInteractions("调试互动选项"); }, 60);
 })();
