@@ -380,6 +380,20 @@
             "<section id='jinzhu-settings-box' hidden>" + settingsHtml() + "</section>";
         var mode = document.getElementById("jinzhu-work-mode");
         if (mode) mode.value = memory.work.mode;
+        bindWorldButtons();
+    }
+    function bindWorldButtons() {
+        if (!controls) return;
+        var buttons = controls.querySelectorAll("button[data-world]");
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].dataset.worldBound) continue;
+            buttons[i].dataset.worldBound = "1";
+            buttons[i].addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                handleControls({ target: event.currentTarget, preventDefault: function () {}, stopPropagation: function () {} });
+            });
+        }
     }
     function moodButtons() {
         return [["happy", "開心"], ["normal", "普通"], ["tired", "有點累"], ["annoyed", "有點煩"], ["private", "暫時不想說"]].map(function (item) {
