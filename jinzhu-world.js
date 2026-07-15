@@ -425,9 +425,18 @@
             if (element) element.hidden = key !== name;
         });
     }
+    function closestFromEventTarget(target, selector) {
+        if (!target) return null;
+        if (target.nodeType !== 1) target = target.parentElement;
+        return target && target.closest ? target.closest(selector) : null;
+    }
     function handleControls(event) {
-        var button = event.target.closest("button"), select = event.target.closest("select"), input = event.target.closest("input");
+        var button = closestFromEventTarget(event.target, "button"),
+            select = closestFromEventTarget(event.target, "select"),
+            input = closestFromEventTarget(event.target, "input");
         if (button && button.dataset.world) {
+            event.preventDefault();
+            event.stopPropagation();
             var action = button.dataset.world;
             if (action === "work") {
                 memory.work.active = !memory.work.active;
