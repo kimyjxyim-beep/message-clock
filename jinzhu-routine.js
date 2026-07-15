@@ -27,6 +27,8 @@
     var currentPosition = { x: 0, y: 0 };
     var legacyPosition = false;
     var lastTapAt = 0;
+    var tapAwayPending = false;
+    var tapAwayTimer = null;
     var introWalkPending = false;
     var pendingEatingDuration = 10000;
     var rainActive = false;
@@ -334,6 +336,14 @@
         var y = rect.bottom - h * .38;
         return clampPosition({ x: x, y: y });
     }
+    function pointOnTop(selector) {
+        var element = document.querySelector(selector);
+        if (!element) return null;
+        var rect = element.getBoundingClientRect();
+        var w = walker.offsetWidth || 116;
+        var h = walker.offsetHeight || 116;
+        return clampPosition({ x: rect.left + (rect.width - w) / 2, y: rect.top - h * .55 });
+    }
 
     function roamingPoints() {
         var b = getViewportBounds();
@@ -345,6 +355,7 @@
             center: { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 },
             "clock-left": pointNear(".clock", "left"),
             "clock-right": pointNear(".clock", "right"),
+            "clock-top": pointOnTop(".clock"),
             "date-left": pointNear(".date", "left"),
             "date-right": pointNear(".date", "right"),
             "weather-left": pointNear(".weather-card", "left"),
@@ -582,6 +593,22 @@
             finishInteraction(routinePeriod() === "night" ? 20000 : 5000);
             return;
         }
+        if (panel.hidden && !tapAwayPending) {
+            tapAwayPending = true;
+            clearTimeout(tapAwayTimer);
+            tapAwayTimer = setTimeout(function () { tapAwayPending = false; }, 9000);
+            setStatus("walking");
+            say("唔好咁快摸我～");
+            setPosition(randomRoamingPosition(), scaledDuration(randomBetween(2, 4) * 1000));
+            schedule(randomBetween(4, 8) * 1000, function () {
+                if (currentStatus === "walking") setStatus("idle");
+                schedule(randomBetween(30, 90) * 1000, chooseNextBehavior);
+            });
+            saveState();
+            return;
+        }
+        tapAwayPending = false;
+        clearTimeout(tapAwayTimer);
         var opening = panel.hidden;
         panel.hidden = !panel.hidden;
         if (opening) prepareOverlays();
