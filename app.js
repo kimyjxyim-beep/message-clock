@@ -170,49 +170,147 @@ setInterval(fetchWeather, 10 * 60 * 1000);
 
 /* 金主：輕量互動與本機狀態 */
 (function initJinzhu() {
+    var home = document.getElementById("jinzhu-home");
+    var walker = document.getElementById("jinzhu-walker");
     var cat = document.getElementById("jinzhu-cat");
     var bubble = document.getElementById("jinzhu-bubble");
     var panel = document.getElementById("jinzhu-panel");
-    if (!cat || !bubble || !panel) return;
+    if (!home || !walker || !cat || !bubble || !panel) return;
 
     var storageKey = "messageClockJinzhuState";
-    var state = { mood: 72, energy: 68, bond: 40 };
+    var state = { mood: 72, energy: 68, bond: 40, lastInteraction: Date.now() };
     try {
         var saved = JSON.parse(localStorage.getItem(storageKey));
         if (saved) {
             if (isFinite(Number(saved.mood))) state.mood = Number(saved.mood);
             if (isFinite(Number(saved.energy))) state.energy = Number(saved.energy);
             if (isFinite(Number(saved.bond))) state.bond = Number(saved.bond);
+            if (isFinite(Number(saved.lastInteraction))) state.lastInteraction = Number(saved.lastInteraction);
         }
     } catch (e) {}
 
-    var lines = ["今日有冇摸我？", "食齋食齋！！🌱🥬", "我唔系宠物，我系金主。", "你做嘢，我监督。"];
+    var lines = [
+        "你做嘢，我监督。",
+        "今日有冇摸我？",
+        "我唔系宠物，我系金主。",
+        "食齋食齋！！🌱🥬",
+        "做完先准休息。",
+        "我醒住，你放心。"
+    ];
     var actionLines = {
         pet: ["摸多兩下都可以嘅。", "唔係我想你摸，係你手凍。"],
         feed: ["菜菜放低，我自己食。🌱", "勉強合格，聽日繼續。"],
-        chat: ["你講，我有聽。", "今日做得點呀？我監督你。"]
+        chat: lines
     };
     var bubbleTimer;
+    var actionTimer;
+    var moveTimer;
+    var glanceTimer;
+    var currentStatus = "idle";
+    var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     function clamp(value) { return Math.max(0, Math.min(100, value)); }
-    function saveAndRender() {
+    function saveAndRender(shouldSave) {
         state.mood = clamp(state.mood);
         state.energy = clamp(state.energy);
         state.bond = clamp(state.bond);
         document.getElementById("jinzhu-mood").textContent = state.mood;
         document.getElementById("jinzhu-energy").textContent = state.energy;
         document.getElementById("jinzhu-bond").textContent = state.bond;
-        try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (e) {}
+        if (shouldSave) {
+            try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (e) {}
+        }
     }
-    function say(text) {
+    function setStatus(status, shouldSave) {
+        home.classList.remove("idle", "happy", "eating", "sleepy", "sleeping", "glance");
+        home.classList.add(status);
+        currentStatus = status;
+        if (shouldSave) saveAndRender(true);
+    }
+    function say(text, persistent) {
         bubble.textContent = text;
         bubble.classList.add("show");
         clearTimeout(bubbleTimer);
-        bubbleTimer = setTimeout(function () { bubble.classList.remove("show"); }, 3200);
+        if (!persistent) {
+            bubbleTimer = setTimeout(function () { bubble.classList.remove("show"); }, 3200);
+        }
     }
     function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+    function wakeUp() {
+        clearTimeout(actionTimer);
+        state.lastInteraction = Date.now();
+        setStatus("idle", true);
+    }
+    function playStatus(status) {
+        clearTimeout(actionTimer);
+        setStatus(status, true);
+        actionTimer = setTimeout(function () { setStatus("idle", false); }, 2000);
+    }
+    function moveSafely(forceCenter) {
+        if (reduceMotion.matches) {
+            home.style.setProperty("--jinzhu-x", "0px");
+            home.style.setProperty("--jinzhu-y", "0px");
+            return;
+        }
+        var homeRect = home.getBoundingClientRect();
+        var centerX = homeRect.left + homeRect.width / 2;
+        var safeVisualHalf = 112; // 菜單比貓寬，按菜單寬度預留螢幕邊界
+        var screenLimit = Math.min(centerX - safeVisualHalf - 8, window.innerWidth - centerX - safeVisualHalf - 8);
+        var movementCap = window.innerWidth <= 600 ? 72 : 30;
+        var maxX = Math.max(0, Math.min(movementCap, screenLimit));
+        var x = forceCenter ? 0 : Math.round((Math.random() * 2 - 1) * maxX);
+        var y = forceCenter ? 0 : Math.round(Math.random() * 6 - 3);
+        home.style.setProperty("--jinzhu-x", x + "px");
+        home.style.setProperty("--jinzhu-y", y + "px");
+    }
+    function scheduleMove() {
+        clearTimeout(moveTimer);
+        if (reduceMotion.matches) return;
+        moveTimer = setTimeout(function () {
+            if (currentStatus !== "sleeping") moveSafely(false);
+            scheduleMove();
+        }, 20000 + Math.random() * 20000);
+    }
+    function scheduleGlance() {
+        clearTimeout(glanceTimer);
+        if (reduceMotion.matches) return;
+        glanceTimer = setTimeout(function () {
+            if (currentStatus === "idle") {
+                home.classList.add("glance");
+                setTimeout(function () { home.classList.remove("glance"); }, 1250);
+            }
+            scheduleGlance();
+        }, 12000 + Math.random() * 12000);
+    }
+    function updateSleepState() {
+        if (currentStatus === "happy" || currentStatus === "eating") return;
+        var idleTime = Date.now() - state.lastInteraction;
+        if (idleTime >= 8 * 60 * 1000) {
+            if (currentStatus !== "sleeping") {
+                panel.hidden = true;
+                moveSafely(true);
+                setStatus("sleeping", true);
+                say("zzZ", true);
+            }
+        } else if (idleTime >= 3 * 60 * 1000) {
+            if (currentStatus !== "sleepy") {
+                setStatus("sleepy", true);
+                say("有少少眼瞓…");
+            }
+        } else if (currentStatus === "sleepy" || currentStatus === "sleeping") {
+            setStatus("idle", false);
+        }
+    }
 
     cat.addEventListener("click", function () {
+        var wasSleeping = currentStatus === "sleeping" || currentStatus === "sleepy";
+        wakeUp();
+        bubble.classList.remove("show");
+        if (wasSleeping) {
+            panel.hidden = true;
+            say("我醒住，你放心。");
+            return;
+        }
         panel.hidden = !panel.hidden;
         say(pick(lines));
     });
@@ -220,11 +318,38 @@ setInterval(fetchWeather, 10 * 60 * 1000);
         var button = event.target.closest("[data-jinzhu-action]");
         if (!button) return;
         var action = button.getAttribute("data-jinzhu-action");
-        if (action === "pet") { state.mood += 6; state.bond += 3; state.energy -= 1; }
-        if (action === "feed") { state.energy += 10; state.mood += 3; state.bond += 1; }
-        if (action === "chat") { state.bond += 5; state.mood += 2; state.energy -= 2; }
-        saveAndRender();
+        wakeUp();
+        if (action === "pet") {
+            state.mood += 6; state.bond += 3; state.energy -= 1;
+            playStatus("happy");
+        }
+        if (action === "feed") {
+            state.energy += 10; state.mood += 3; state.bond += 1;
+            playStatus("eating");
+        }
+        if (action === "chat") {
+            state.bond += 5; state.mood += 2; state.energy -= 2;
+            setStatus("idle", true);
+        }
+        saveAndRender(true);
         say(pick(actionLines[action]));
     });
-    saveAndRender();
+    function handleMotionPreference() {
+        moveSafely(true);
+        scheduleMove();
+        scheduleGlance();
+    }
+    if (reduceMotion.addEventListener) {
+        reduceMotion.addEventListener("change", handleMotionPreference);
+    } else if (reduceMotion.addListener) {
+        reduceMotion.addListener(handleMotionPreference);
+    }
+    window.addEventListener("resize", function () { moveSafely(true); });
+
+    saveAndRender(false);
+    updateSleepState();
+    setInterval(updateSleepState, 15000);
+    moveSafely(false);
+    scheduleMove();
+    scheduleGlance();
 })();

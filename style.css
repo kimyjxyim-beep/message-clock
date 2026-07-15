@@ -241,8 +241,10 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 
 /* 金主住在兩張卡片之間，不另外加大容器 */
 .jinzhu-home {
+    --jinzhu-x: 0px;
+    --jinzhu-y: 0px;
     position: relative;
-    flex: 0 0 116px;
+    flex: 0 0 158px;
     min-height: 142px;
     align-self: flex-end;
     display: flex;
@@ -250,6 +252,14 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     justify-content: flex-end;
     flex-direction: column;
     z-index: 8;
+}
+.jinzhu-walker {
+    position: relative;
+    width: 116px;
+    height: 116px;
+    transform: translate3d(var(--jinzhu-x), var(--jinzhu-y), 0);
+    transition: transform 7s cubic-bezier(.45, .05, .35, 1);
+    will-change: transform;
 }
 .jinzhu-cat {
     width: 116px;
@@ -261,11 +271,31 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     filter: drop-shadow(0 9px 9px rgba(0, 0, 0, .38));
-    animation: jinzhu-breathe 3.8s ease-in-out infinite;
 }
-.jinzhu-cat img { width: 108px; height: 108px; object-fit: contain; display: block; margin: auto; }
+.jinzhu-cat img {
+    width: 108px;
+    height: 108px;
+    object-fit: contain;
+    display: block;
+    margin: auto;
+    transform-origin: 50% 82%;
+}
 .jinzhu-cat:focus-visible { outline: 2px solid rgba(255,255,255,.75); outline-offset: 3px; }
-.jinzhu-cat:active { transform: scale(.96); }
+.jinzhu-cat:active img { transform: scale(.96); }
+.jinzhu-home.idle .jinzhu-cat img { animation: jinzhu-breathe 3.8s ease-in-out infinite; }
+.jinzhu-home.idle.glance .jinzhu-cat img { animation: jinzhu-glance 1.2s ease-in-out 1; }
+.jinzhu-home.happy .jinzhu-cat img { animation: jinzhu-happy .55s ease-in-out 3; }
+.jinzhu-home.eating .jinzhu-cat img { animation: jinzhu-eating .42s ease-in-out 5; }
+.jinzhu-home.sleepy .jinzhu-cat img {
+    filter: brightness(.76);
+    animation: jinzhu-sleepy 6.5s ease-in-out infinite;
+}
+.jinzhu-home.sleeping .jinzhu-cat img {
+    filter: brightness(.62);
+    animation: jinzhu-sleeping 7.5s ease-in-out infinite;
+}
+.jinzhu-home.sleepy .jinzhu-walker { transition-duration: 11s; }
+.jinzhu-home.sleeping .jinzhu-walker { transition-duration: 14s; }
 .jinzhu-bubble {
     position: absolute;
     left: 50%;
@@ -293,6 +323,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     transform: translateX(-50%) rotate(45deg);
 }
 .jinzhu-bubble.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.jinzhu-home.sleeping .jinzhu-bubble { font-weight: 600; letter-spacing: 1px; }
 .jinzhu-panel {
     position: absolute;
     left: 50%; top: calc(100% + 7px);
@@ -320,8 +351,35 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     cursor: pointer;
 }
 .jinzhu-actions button:active { background: rgba(255,255,255,.18); }
-@keyframes jinzhu-breathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-@media (prefers-reduced-motion: reduce) { .jinzhu-cat { animation: none; } }
+@keyframes jinzhu-breathe {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-3px) scale(1.012); }
+}
+@keyframes jinzhu-glance {
+    0%, 100% { transform: rotate(0); }
+    30% { transform: rotate(-2.5deg) translateY(1px); }
+    68% { transform: rotate(2deg); }
+}
+@keyframes jinzhu-happy {
+    0%, 100% { transform: translateY(0) scale(1) rotate(0); }
+    45% { transform: translateY(-7px) scale(1.055, .96) rotate(-1.5deg); }
+}
+@keyframes jinzhu-eating {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50% { transform: translateY(5px) rotate(1deg); }
+}
+@keyframes jinzhu-sleepy {
+    0%, 100% { transform: translateY(0) rotate(0) scale(1); }
+    50% { transform: translateY(2px) rotate(1.2deg) scale(.985); }
+}
+@keyframes jinzhu-sleeping {
+    0%, 100% { transform: translateY(3px) scale(.94); }
+    50% { transform: translateY(5px) scale(.925, .95); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .jinzhu-walker { transform: none !important; transition: none; will-change: auto; }
+    .jinzhu-home .jinzhu-cat img { animation: none !important; }
+}
 
 /* ====================
    iPad & 中等螢幕 (動態佈滿空間)
@@ -392,6 +450,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .left-col, .right-col { width: 100%; }
     .left-col { margin-bottom: 8px; }
     .jinzhu-home { flex: none; width: 100%; min-height: 122px; align-self: center; margin: -2px 0 7px; }
+    .jinzhu-walker { width: 110px; height: 110px; }
     .jinzhu-cat { width: 110px; height: 110px; }
     .jinzhu-cat img { width: 104px; height: 104px; }
     .jinzhu-bubble { bottom: 105px; max-width: min(210px, 72vw); }
