@@ -380,6 +380,10 @@
             "<section id='jinzhu-settings-box' hidden>" + settingsHtml() + "</section>";
         var mode = document.getElementById("jinzhu-work-mode");
         if (mode) mode.value = memory.work.mode;
+        var menuButtons = controls.querySelectorAll("button[data-world]");
+        for (var b = 0; b < menuButtons.length; b++) {
+            menuButtons[b].setAttribute("onclick", "return window.JinzhuMenuAction('" + menuButtons[b].dataset.world + "')");
+        }
         bindWorldButtons();
     }
     function bindWorldButtons() {
@@ -439,6 +443,10 @@
             if (element) element.hidden = key !== name;
         });
     }
+    window.JinzhuMenuAction = function (name) {
+        showControl(name);
+        return false;
+    };
     function closestFromEventTarget(target, selector) {
         if (!target) return null;
         if (target.nodeType !== 1) target = target.parentElement;

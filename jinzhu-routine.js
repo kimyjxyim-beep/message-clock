@@ -342,7 +342,8 @@
         var rect = element.getBoundingClientRect();
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
-        return clampPosition({ x: rect.left + (rect.width - w) / 2, y: rect.top - h * .55 });
+        // Rest directly on the clock face (not merely beside it).
+        return clampPosition({ x: rect.left + (rect.width - w) / 2, y: rect.top + (rect.height - h) / 2 });
     }
 
     function roamingPoints() {
