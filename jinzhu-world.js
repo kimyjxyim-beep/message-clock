@@ -17,8 +17,10 @@
     var LocalStorageAdapter = window.LocalStorageAdapter;
     var params = queryParameters(location.search);
     var debugMode = params.get("jinzhuDebug") === "1";
+    var forcedWeather = debugMode ? params.get("jinzhuWeather") : null;
     var storage = new LocalStorageAdapter(debugMode ? "messageClockDebug:" : "messageClock:");
     var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    var lowPowerDevice = /iPad.*OS (?:[1-9]|10)_/i.test(navigator.userAgent || "") || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2);
     var bridge = window.JinzhuBridge;
     var now = Date.now();
     var todayKey = dayKey(new Date());
@@ -37,7 +39,7 @@
         work: { active: false, mode: "normal", effectiveMs: 0 },
         settings: {
             restEnabled: true, restMinutes: 50, waterEnabled: true, waterMinutes: 90,
-            restPausedDate: "", waterPausedDate: ""
+            restPausedDate: "", waterPausedDate: "", animationMode: "system", soundEnabled: false
         },
         reminder: {
             restSnoozeUntil: 0, waterSnoozeUntil: 0, lastRestPrompt: 0, lastWaterPrompt: 0,
@@ -64,6 +66,11 @@
     var reminderBox = null;
     var controls = document.getElementById("jinzhu-world-controls");
     var debugBox = null;
+    var activeControl = "";
+    var chatHistory = [];
+    var recentReplies = [];
+    var chatBusyUntil = 0;
+    var chatTimer = null;
 
     function queryParameters(search) {
         return { get: function (name) {
@@ -108,14 +115,7 @@
         memory.lastSeenAt = Date.now();
         if (bridge) memory.current = merge(memory.current, bridge.getState());
         storage.set("JinzhuMemory", memory);
-        renderControls();
     }
-    function minutes(ms) { return Math.floor(Number(ms || 0) / 60000); }
-    function formatMinutes(ms) {
-        var total = minutes(ms);
-        return total >= 60 ? Math.floor(total / 60) + "小時 " + total % 60 + "分" : total + "分鐘";
-    }
-
     function setupLayers() {
         starsLayer = document.createElement("div");
         starsLayer.className = "sky-stars";
@@ -231,6 +231,7 @@
         while (rainLayer.firstChild) rainLayer.removeChild(rainLayer.firstChild);
         if (raining && !reduceMotion.matches) {
             var count = type === "drizzle" ? 18 : type === "heavy" || type === "thunder" ? 58 : 34;
+            if (lowPowerDevice || memory.settings.animationMode === "simple") count = Math.min(count, 12);
             for (var i = 0; i < count; i++) {
                 var drop = document.createElement("i");
                 drop.style.left = (i * 37 % 101) + "%";
@@ -373,75 +374,55 @@
         controls.innerHTML =
             "<div class='jinzhu-world-actions'>" +
             "<button data-world='work'>" + (memory.work.active ? "結束陪工" : "開始陪工") + "</button>" +
-            "<button data-world='mood'>心情簽到</button><button data-world='diary'>金主日記</button><button data-world='settings'>設定</button></div>" +
-            "<section id='jinzhu-work-box' hidden><label>陪伴方式<select id='jinzhu-work-mode'><option value='quiet'>安靜陪伴</option><option value='normal'>正常監督</option><option value='strict'>嚴格金主</option></select></label></section>" +
-            "<section id='jinzhu-mood-box' hidden><p>今日感覺點呀？</p><div class='jinzhu-choice-grid'>" + moodButtons() + "</div></section>" +
-            "<section id='jinzhu-diary-box' hidden>" + diaryHtml() + "</section>" +
+            "<button data-world='mood'>心情簽到</button>" +
+            "<button class='settings-wide' data-world='settings'>設定</button></div>" +
+            "<section id='jinzhu-work-box' hidden><div class='panel-heading'><h3>陪工模式</h3><button data-panel-close type='button'>關閉</button></div><p>" +
+                (memory.work.active ? "金主正在陪你做嘢。" : "而家未開始陪工。") + "</p></section>" +
+            "<section id='jinzhu-chat-box' hidden>" + chatHtml() + "</section>" +
+            "<section id='jinzhu-mood-box' hidden><div class='panel-heading'><h3>今日感覺點呀？</h3><button data-panel-close type='button'>關閉</button></div><div class='jinzhu-choice-grid'>" + moodButtons() + "</div>" +
+                (memory.today.mood ? "<p class='choice-feedback'>今日已選：" + memory.today.mood + "（可以修改）</p>" : "") + "</section>" +
             "<section id='jinzhu-settings-box' hidden>" + settingsHtml() + "</section>";
-        var mode = document.getElementById("jinzhu-work-mode");
-        if (mode) mode.value = memory.work.mode;
-        var menuButtons = controls.querySelectorAll("button[data-world]");
-        for (var b = 0; b < menuButtons.length; b++) {
-            menuButtons[b].setAttribute("onclick", "return window.JinzhuMenuAction('" + menuButtons[b].dataset.world + "')");
-        }
-        bindWorldButtons();
-    }
-    function bindWorldButtons() {
-        if (!controls) return;
-        var buttons = controls.querySelectorAll("button[data-world]");
-        for (var i = 0; i < buttons.length; i++) {
-            if (buttons[i].dataset.worldBound) continue;
-            buttons[i].dataset.worldBound = "1";
-            buttons[i].addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                handleControls({ target: event.currentTarget, preventDefault: function () {}, stopPropagation: function () {} });
-            });
-        }
+        showControl(activeControl);
+        renderChatHistory();
     }
     function moodButtons() {
+        var current = { "開心": "happy", "普通": "normal", "有點累": "tired", "有點煩": "annoyed", "暫時不想說": "private" }[memory.today.mood];
         return [["happy", "開心"], ["normal", "普通"], ["tired", "有點累"], ["annoyed", "有點煩"], ["private", "暫時不想說"]].map(function (item) {
-            return "<button data-mood='" + item[0] + "'>" + item[1] + "</button>";
+            return "<button data-mood='" + item[0] + "' class='" + (current === item[0] ? "selected" : "") + "'>" + item[1] + "</button>";
         }).join("");
     }
-    function diaryHtml() {
-        var lines = diaryLines();
-        return "<h3>今日金主日記</h3><p>陪伴 " + formatMinutes(memory.today.companionMs) + " · 飲水 " + memory.today.waterCount + " · 休息 " + memory.today.restCount + "</p>" +
-            "<p>心情：" + (memory.today.mood || "未簽到") + " · 摸摸 " + memory.today.petCount + " · 投餵 " + memory.today.feedCount + "</p>" +
-            "<ul>" + lines.map(function (line) { return "<li>" + line + "</li>"; }).join("") + "</ul>";
-    }
-    function diaryLines() {
-        var types = {};
-        memory.today.events.forEach(function (event) { types[event.type] = true; });
-        var lines = [];
-        if (memory.today.mood === "有點累") lines.push("今日主人有啲攰，我靜靜陪住佢。");
-        else if (memory.today.mood === "有點煩") lines.push("主人今日想靜一靜，我冇再追問。");
-        else if (memory.today.mood === "開心") lines.push("主人今日心情唔錯，我都有精神玩。");
-        if (types.rain) lines.push("今日落過雨，我撐住遮陪主人。");
-        if (types.fan) lines.push("今日好熱，主人幫我開咗風扇。");
-        else if (types.aircon) lines.push("今日超過 32°C，主人幫我開咗冷氣。");
-        if (types.eating) lines.push("今日我有好好食飯，碗都清晒。");
-        if (types.sleeping) lines.push("我今日蜷埋瞓過一覺，醒來繼續監督。");
-        if (types.water) lines.push("主人今日有記得飲水。");
-        if (!lines.length) lines.push("今日我安靜坐喺度，陪主人睇時間。");
-        return lines.slice(0, 3);
+    function chatHtml() {
+        var topics = ["你肚饿吗？", "今日天气点呀？", "陪我工作", "我有点累", "我不开心", "你在做什么？", "我返嚟啦", "晚安"];
+        return "<div class='panel-heading'><h3>同金主聊天</h3><button data-panel-close type='button'>關閉</button></div>" +
+            "<p class='local-chat-note'>本地情境回覆，不會讀取其他內容。</p>" +
+            "<div id='jinzhu-chat-history' class='jinzhu-chat-history' aria-live='polite'></div>" +
+            "<div class='jinzhu-chat-topics'>" + topics.map(function (topic) { return "<button type='button' data-chat-topic='" + topic + "'>" + topic + "</button>"; }).join("") + "</div>" +
+            "<form id='jinzhu-chat-form' class='jinzhu-chat-form'><input id='jinzhu-chat-input' maxlength='48' autocomplete='off' placeholder='同金主講句嘢…' aria-label='聊天內容'><button type='submit'>發送</button></form>";
     }
     function settingsHtml() {
-        return "<h3>提醒設定</h3>" +
-            "<label><input id='rest-enabled' type='checkbox' " + (memory.settings.restEnabled ? "checked" : "") + ">休息提醒</label>" +
-            "<select id='rest-minutes'>" + options([30,45,50,60], memory.settings.restMinutes) + "</select>" +
-            "<label><input id='water-enabled' type='checkbox' " + (memory.settings.waterEnabled ? "checked" : "") + ">喝水提醒</label>" +
-            "<select id='water-minutes'>" + options([60,90,120], memory.settings.waterMinutes) + "</select>" +
-            "<p>今日喝水：" + memory.today.waterCount + " 次</p>";
+        return "<div class='panel-heading'><h3>金主設定</h3><button data-panel-close type='button'>關閉</button></div>" +
+            "<label>陪伴模式<select id='settings-companion-mode'>" + textOptions([["quiet","安靜"],["normal","正常"],["strict","嚴格"]], memory.work.mode) + "</select></label>" +
+            "<label class='toggle-row'><input id='rest-enabled' type='checkbox' " + (memory.settings.restEnabled ? "checked" : "") + ">休息提醒</label>" +
+            "<label>休息間隔<select id='rest-minutes'>" + options([30,45,50,60], memory.settings.restMinutes) + "</select></label>" +
+            "<label class='toggle-row'><input id='water-enabled' type='checkbox' " + (memory.settings.waterEnabled ? "checked" : "") + ">喝水提醒</label>" +
+            "<label>喝水間隔<select id='water-minutes'>" + options([60,90,120], memory.settings.waterMinutes) + "</select></label>" +
+            "<label>動畫效果<select id='animation-mode'>" + textOptions([["full","完整"],["simple","精簡"],["system","跟隨系統"]], memory.settings.animationMode) + "</select></label>" +
+            "<label class='toggle-row'><input id='sound-enabled' type='checkbox' " + (memory.settings.soundEnabled ? "checked" : "") + ">金主聲音（預設關閉）</label>" +
+            "<button type='button' class='danger-button' data-reset-jinzhu>重置金主狀態</button>";
     }
     function options(values, selected) {
         return values.map(function (value) { return "<option value='" + value + "' " + (Number(selected) === value ? "selected" : "") + ">" + value + " 分鐘</option>"; }).join("");
     }
+    function textOptions(values, selected) {
+        return values.map(function (item) { return "<option value='" + item[0] + "' " + (selected === item[0] ? "selected" : "") + ">" + item[1] + "</option>"; }).join("");
+    }
     function showControl(name) {
-        ["work", "mood", "diary", "settings"].forEach(function (key) {
+        activeControl = name || "";
+        ["work", "chat", "mood", "settings"].forEach(function (key) {
             var element = document.getElementById("jinzhu-" + key + "-box");
-            if (element) element.hidden = key !== name;
+            if (element) element.hidden = key !== activeControl;
         });
+        if (activeControl === "chat") renderChatHistory();
     }
     window.JinzhuMenuAction = function (name) {
         showControl(name);
@@ -471,6 +452,26 @@
             } else showControl(action);
             saveMemory(); return;
         }
+        if (button && button.hasAttribute("data-panel-close")) {
+            showControl("");
+            if (bridge && bridge.closeMenu) bridge.closeMenu();
+            return;
+        }
+        if (button && button.hasAttribute("data-reset-jinzhu")) {
+            if (button.getAttribute("data-confirm") !== "1") {
+                button.setAttribute("data-confirm", "1");
+                button.textContent = "再按一次確認重置";
+                setTimeout(function () { if (button) { button.removeAttribute("data-confirm"); button.textContent = "重置金主狀態"; } }, 5000);
+            } else {
+                try { localStorage.removeItem((debugMode ? "messageClockDebug:" : "messageClock:") + "JinzhuMemory"); localStorage.removeItem(debugMode ? "messageClockJinzhuStateDebug" : "messageClockJinzhuState"); } catch (error) {}
+                location.reload();
+            }
+            return;
+        }
+        if (button && button.getAttribute("data-chat-topic")) {
+            sendChat(button.getAttribute("data-chat-topic"));
+            return;
+        }
         if (button && button.dataset.mood) {
             var moodMap = { happy: "開心", normal: "普通", tired: "有點累", annoyed: "有點煩", private: "暫時不想說" };
             memory.today.mood = moodMap[button.dataset.mood];
@@ -482,9 +483,12 @@
             else if (button.dataset.mood === "annoyed") queueCatMessage("我坐近少少，唔嘈你。");
             else if (button.dataset.mood === "private") queueCatMessage("好，我唔追問。");
             else queueCatMessage("嗯，我喺度。");
-            renderControls(); saveMemory(); return;
+            saveMemory();
+            renderControls();
+            showControl("mood");
+            return;
         }
-        if (select && select.id === "jinzhu-work-mode") {
+        if (select && (select.id === "jinzhu-work-mode" || select.id === "settings-companion-mode")) {
             memory.work.mode = select.value;
             if (bridge) bridge.setQuietMode(select.value === "quiet");
             if (bridge && bridge.setCompanionMode) bridge.setCompanionMode(select.value);
@@ -492,9 +496,134 @@
         }
         if (select && select.id === "rest-minutes") memory.settings.restMinutes = Number(select.value);
         if (select && select.id === "water-minutes") memory.settings.waterMinutes = Number(select.value);
+        if (select && select.id === "animation-mode") {
+            memory.settings.animationMode = select.value;
+            if (bridge && bridge.setAnimationMode) bridge.setAnimationMode(select.value);
+        }
         if (input && input.id === "rest-enabled") memory.settings.restEnabled = input.checked;
         if (input && input.id === "water-enabled") memory.settings.waterEnabled = input.checked;
+        if (input && input.id === "sound-enabled") memory.settings.soundEnabled = input.checked;
         if (select || input) saveMemory();
+    }
+
+    var replyPools = {
+        daily: ["我喺度呀。", "你做你嘅，我睇住你。", "金主今日都有乖乖陪你。", "做咩又搵我呀？", "摸多兩下都得嘅。", "我啱啱只係巡查緊。", "呢个位几舒服，我坐阵先。", "你继续啦，我冇走。", "我听紧，虽然未必听得明。", "金主批准你休息一阵。"],
+        morning: ["早晨呀，今日都要慢慢嚟。", "我醒咗，你醒咗未？", "朝早空气好似几舒服。", "食咗早餐未呀？", "新一日又开始啦。"],
+        afternoon: ["下昼最适合打个盹。", "做咗一阵啦，饮啖水先。", "我有少少眼瞓，但会继续监督。", "今日进行成点呀？", "唔使急，一样一样做。"],
+        late: ["咁夜仲未瞓呀？", "我已经想蜷埋瞓觉啦。", "做埋手头呢少少就休息啦。", "夜晚要细声啲，金主要瞓。", "听日再做都得㗎。"],
+        sunny: ["今日有太阳，个背景都光咗。", "天气几好，适合晒下毛。", "今日睇落暖笠笠。", "出门记得唔好晒亲。", "我想去有阳光嘅地方坐。"],
+        rain: ["落雨啦，记得带遮。", "出门小心湿身。", "今日适合留喺屋企。", "雨声几适合瞓觉。", "我把遮借俾你又点话。"],
+        hunger: ["有少少肚饿。", "个饭碗好似空咗。", "今日食咩呀？", "我要真系有饭先食㗎。", "我饱啦，唔好再喂。", "食完饭要舔干净块面。", "呢餐可以，金主收货。"],
+        sleep: ["zzz……", "我听日再审你。", "唔好嘈，我蜷得啱啱好。", "我只係合埋眼休息。", "你都早点瞓啦。", "再摸一下我就醒㗎啦。"],
+        work: ["你做嘢，我监督。", "专心啦，唔好成日撳我。", "我陪你做埋呢一段。", "你忙你嘅，我喺旁边坐。", "差唔多要休息啦。", "今日效率几高喔。", "做唔晒都唔代表今日冇做过。"],
+        comfort: ["攰就休息阵，我陪住你。", "今日唔开心都冇所谓。", "唔使即刻解决晒所有事。", "我唔催你，我喺度。", "饮啖水，透下气先。", "你可以乜都唔讲。", "摸下金主，今日就算过咗一关。"],
+        return: ["你返嚟啦。", "你去咗一阵，我冇乱走。", "等咗你好几个钟。", "今日终于见到你啦。", "好耐冇见，不过金主冇嬲你。", "欢迎返屋企。"]
+    };
+
+    function hasAny(text, words) {
+        for (var i = 0; i < words.length; i++) if (text.indexOf(words[i]) >= 0) return true;
+        return false;
+    }
+    function chatCategory(text) {
+        var value = String(text || "").toLowerCase();
+        var pet = bridge && bridge.getState ? bridge.getState() : memory.current;
+        var status = pet.status || "idle";
+        var rain = weatherData && weatherType(weatherData.code) !== "clear";
+        if (hasAny(value, ["返嚟", "回来", "回來", "我回", "back"])) return "return";
+        if (hasAny(value, ["攰", "累", "烦", "煩", "不开心", "不開心", "难受", "難受"])) return "comfort";
+        if (hasAny(value, ["工作", "做嘢", "陪工", "监督", "監督"]) || memory.work.active) return "work";
+        if (hasAny(value, ["睡觉", "睡覺", "瞓觉", "瞓覺", "晚安"]) || status === "sleeping" || status === "sleepy") return "sleep";
+        if (hasAny(value, ["肚饿", "肚餓", "吃饭", "吃飯", "食饭", "食飯", "喂", "餵"]) || Number(pet.fullness) < 25) return "hunger";
+        if (hasAny(value, ["天气", "天氣", "下雨", "落雨", "雨"])) return rain ? "rain" : "sunny";
+        if (memory.today.mood === "有点累" || memory.today.mood === "有点烦" || memory.today.mood === "有點累" || memory.today.mood === "有點煩") return "comfort";
+        var hour = new Date().getHours();
+        if (hour < 6 || hour >= 23) return "late";
+        if (hour < 11) return "morning";
+        if (hour >= 12 && hour < 18) return "afternoon";
+        return rain ? "rain" : "daily";
+    }
+    function chooseReply(category) {
+        var pool = replyPools[category] || replyPools.daily;
+        var choices = pool.filter(function (line) { return recentReplies.indexOf(line) < 0; });
+        if (!choices.length) choices = pool.slice(0);
+        var reply = choices[Math.floor(Math.random() * choices.length)] || replyPools.daily[0];
+        recentReplies.push(reply);
+        while (recentReplies.length > 5) recentReplies.shift();
+        return reply;
+    }
+    function rememberReply(reply) {
+        recentReplies.push(reply);
+        while (recentReplies.length > 5) recentReplies.shift();
+        return reply;
+    }
+    function contextualReply(text) {
+        var value = String(text || "").toLowerCase();
+        var pet = bridge && bridge.getState ? bridge.getState() : memory.current;
+        var status = pet.status || "idle";
+        if (hasAny(value, ["做什么", "做甚麼", "做咩", "干嘛", "幹嘛"])) {
+            var actions = {
+                sleeping: "我蜷埋瞓紧，唔好声张。", eating: "我食紧饭，个碗就快清晒。",
+                grooming: "整理下毛先，仪容好重要。", walking: "我啱啱巡查紧呢个页面。",
+                climbing: "我爬紧上时钟，望高啲。", perched: "我坐喺时间框上面监督你。",
+                playing: "我只係活动下，唔算贪玩。", idle: "我坐紧呢度陪你呀。"
+            };
+            return rememberReply(actions[status] || "我喺度观察紧你。");
+        }
+        if (hasAny(value, ["天气", "天氣", "太阳", "太陽", "天色"])) {
+            var sky = skyState();
+            var raining = weatherData && weatherType(weatherData.code) !== "clear";
+            if (raining) return chooseReply("rain");
+            if (sky.phase.indexOf("sunrise") >= 0 || sky.phase.indexOf("dawn") >= 0) return rememberReply("天光紧啦，今日慢慢开始。");
+            if (sky.night) return rememberReply("夜色好静，你都唔好捱得太夜。");
+            return chooseReply("sunny");
+        }
+        if (hasAny(value, ["返嚟", "回来", "回來", "我回"])) {
+            var away = Math.max(0, now - previousSeenAt);
+            if (away > 24 * 3600000) return rememberReply("好耐冇见，不过金主冇嬲你。");
+            if (away > 3 * 3600000) return rememberReply("等咗你好几个钟，欢迎返屋企。");
+            return rememberReply("你返嚟啦，我冇乱走。");
+        }
+        if (hasAny(value, ["攰", "累", "烦", "煩", "休息"])) {
+            if (Date.now() - Number(memory.lastRestAt || 0) < 30 * 60000) return rememberReply("啱啱休息过就慢慢嚟，我继续陪住你。");
+            if (Date.now() - Number(memory.lastWaterAt || 0) > 90 * 60000) return rememberReply("攰就停一停，顺便饮啖水先。");
+        }
+        return "";
+    }
+    function renderChatHistory(thinking) {
+        var box = document.getElementById("jinzhu-chat-history");
+        if (!box) return;
+        while (box.firstChild) box.removeChild(box.firstChild);
+        chatHistory.slice(-12).forEach(function (item) {
+            var line = document.createElement("p");
+            line.className = "chat-line " + item.role;
+            line.textContent = (item.role === "cat" ? "金主：" : "你：") + item.text;
+            box.appendChild(line);
+        });
+        if (thinking) {
+            var wait = document.createElement("p");
+            wait.className = "chat-line cat thinking";
+            wait.textContent = "金主：……";
+            box.appendChild(wait);
+        }
+        box.scrollTop = box.scrollHeight;
+    }
+    function sendChat(text) {
+        text = String(text || "").replace(/^\s+|\s+$/g, "");
+        if (!text || Date.now() < chatBusyUntil) return;
+        chatBusyUntil = Date.now() + 900;
+        chatHistory.push({ role: "user", text: text });
+        while (chatHistory.length > 12) chatHistory.shift();
+        renderChatHistory(true);
+        clearTimeout(chatTimer);
+        chatTimer = setTimeout(function () {
+            var reply = contextualReply(text) || chooseReply(chatCategory(text));
+            chatHistory.push({ role: "cat", text: reply });
+            while (chatHistory.length > 12) chatHistory.shift();
+            renderChatHistory(false);
+            if (bridge) bridge.say(reply);
+        }, 350 + Math.floor(Math.random() * 450));
+        var input = document.getElementById("jinzhu-chat-input");
+        if (input) input.value = "";
     }
 
     function welcomeMessage() {
@@ -539,17 +668,47 @@
 
     setupLayers();
     renderControls();
+    window.JinzhuWorld = {
+        openChat: function () {
+            if (bridge && bridge.openMenu) bridge.openMenu("同我讲啦，我听紧。");
+            showControl("chat");
+            setTimeout(function () {
+                var input = document.getElementById("jinzhu-chat-input");
+                if (input) input.focus();
+            }, 80);
+        },
+        openMood: function () { if (bridge && bridge.openMenu) bridge.openMenu(); showControl("mood"); },
+        openSettings: function () { if (bridge && bridge.openMenu) bridge.openMenu(); showControl("settings"); }
+    };
     if (bridge && bridge.setOwnerMood) {
         var savedMoodKey = { "開心": "happy", "普通": "normal", "有點累": "tired", "有點煩": "annoyed", "暫時不想說": "private" }[memory.today.mood] || "normal";
         bridge.setOwnerMood(savedMoodKey);
     }
+    if (bridge && bridge.setAnimationMode) bridge.setAnimationMode(memory.settings.animationMode || "system");
     controls.addEventListener("click", handleControls);
     controls.addEventListener("change", handleControls);
+    controls.addEventListener("submit", function (event) {
+        if (event.target && event.target.id === "jinzhu-chat-form") {
+            event.preventDefault();
+            var input = document.getElementById("jinzhu-chat-input");
+            sendChat(input ? input.value : "");
+        }
+    });
+    document.addEventListener("click", function (event) {
+        var walker = document.getElementById("jinzhu-walker");
+        var panel = document.getElementById("jinzhu-panel");
+        if (!walker || !panel || panel.hidden || walker.contains(event.target)) return;
+        showControl("");
+        if (bridge && bridge.closeMenu) bridge.closeMenu();
+    }, true);
     reminderBox.addEventListener("click", handleReminderAction);
     ["pointerdown", "touchstart", "keydown", "mousemove"].forEach(function (name) {
         document.addEventListener(name, noteActivity, { passive: name !== "keydown" });
     });
-    window.addEventListener("jinzhu:weather", function (event) { handleWeather(event.detail || {}); });
+    window.addEventListener("jinzhu:weather", function (event) {
+        if (forcedWeather && debugWeatherCode(forcedWeather) !== undefined) return;
+        handleWeather(event.detail || {});
+    });
     window.addEventListener("jinzhu:status", function (event) {
         var status = event.detail && event.detail.status;
         memory.current.status = status;
@@ -579,7 +738,6 @@
         tick();
     });
 
-    var forcedWeather = debugMode ? params.get("jinzhuWeather") : null;
     if (forcedWeather && debugWeatherCode(forcedWeather) !== undefined) handleWeather({ code: debugWeatherCode(forcedWeather), utcOffsetSeconds: 28800 });
     else if (weatherData) handleWeather(weatherData);
     else applySky();
