@@ -38,7 +38,9 @@ npm start
 npm run dist
 ```
 
-输出到：`desktop-overlay/dist/Jinzhu-Desktop-Pet-1.0.0-portable.exe`
+输出到：`desktop-overlay/dist/Jinzhu-Desktop-Pet-1.0.1-portable.exe`
+
+请注意：双击 Windows Overlay `.exe` 只会启动透明桌面宠物，不会修改 Windows 壁纸。完整桌面体验需要同时运行两层：Lively Wallpaper 负责时钟背景，portable `.exe` 负责可以出现在其他窗口上方的金主。
 
 `desktop-overlay/dist/` 和 `desktop-overlay/node_modules/` 已加入 `.gitignore`。构建产物不会提交到 Git；当前 Git 历史没有追踪 `.exe`。这样可以避免仓库被 70MB 以上的二进制和重复构建产物膨胀。需要发布时，可把 portable `.exe` 放到 GitHub Releases 或其他发行渠道。
 

@@ -1,10 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const path = require('path');
-const { pathToFileURL } = require('url');
-const assetDir = process.resourcesPath ? path.join(process.resourcesPath, 'assets', 'jinzhu') : path.join(__dirname, '..', 'assets', 'jinzhu');
 contextBridge.exposeInMainWorld('jinzhuOverlay', {
-  assetRoot: pathToFileURL(assetDir + path.sep).href,
+  getBootstrap: () => ipcRenderer.invoke('overlay:get-bootstrap'),
   getState: () => ipcRenderer.invoke('overlay:get-state'),
+  reportImageResult: (result) => ipcRenderer.send('overlay:image-result', result),
   saveState: (state) => ipcRenderer.send('overlay:save-state', state),
   setPosition: (p) => ipcRenderer.send('overlay:set-position', p),
   dragDelta: (delta) => ipcRenderer.send('overlay:drag-delta', delta),
