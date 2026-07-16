@@ -1,3 +1,52 @@
-# message-clock
-Turn your old tablet into a beautiful message clock.
- 
+# message-clock / 金主
+
+这个仓库同时保存网页时钟和 Windows 桌面宠物的源码，但目前仍是一个 repo，未执行拆分。
+
+## 1. 网页时钟（GitHub Pages）
+
+普通浏览器访问：
+
+<https://kimyjxyim-beep.github.io/message-clock/>
+
+网页层包含翻页时钟、日期、天气、留言板、动态天色和网页内金主互动。
+
+## 2. Lively Wallpaper 壁纸模式
+
+在 Lively Wallpaper 中加载：
+
+<https://kimyjxyim-beep.github.io/message-clock/?wallpaper=1>
+
+这个模式保留时钟、天气、留言板和天色氛围，隐藏网页宠物互动控件，适合与独立桌面宠物 Overlay 同时使用。
+
+## 3. Windows Desktop Pet Overlay
+
+源码位置：`desktop-overlay/`
+
+它是独立的 Electron 透明小窗口，负责金主在 Windows 桌面上的走动、点击、拖动、睡觉、托盘控制和本地状态保存。
+
+开发运行：
+
+```powershell
+cd desktop-overlay
+npm install
+npm start
+```
+
+生成 Windows portable 版本：
+
+```powershell
+npm run dist
+```
+
+输出到：`desktop-overlay/dist/Jinzhu-Desktop-Pet-1.0.0-portable.exe`
+
+`desktop-overlay/dist/` 和 `desktop-overlay/node_modules/` 已加入 `.gitignore`。构建产物不会提交到 Git；当前 Git 历史没有追踪 `.exe`。这样可以避免仓库被 70MB 以上的二进制和重复构建产物膨胀。需要发布时，可把 portable `.exe` 放到 GitHub Releases 或其他发行渠道。
+
+## 将来拆分成独立 repo（本次不执行）
+
+建议拆成两个仓库：
+
+1. `message-clock`：只保留 GitHub Pages 网页、天气、天色和网页素材。
+2. `jinzhu-desktop-pet`：保留 Electron Overlay、打包配置和 Windows 发布流程。
+
+拆分时，Overlay 可以通过 release 下载网页所需的素材，或将素材复制进自己的 `resources/assets`；网页 repo 继续独立部署。拆分前应先确定版本号、素材授权、发布渠道和两边的更新流程。
