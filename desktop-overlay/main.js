@@ -5,7 +5,7 @@ const { pathToFileURL } = require('url');
 if (process.stdout) process.stdout.on('error', () => {});
 if (process.stderr) process.stderr.on('error', () => {});
 
-const SIZE = { width: 220, height: 190 };
+const SIZE = { width: 280, height: 220 };
 const WALLPAPER_URL = 'https://kimyjxyim-beep.github.io/message-clock/?wallpaper=1';
 let win, tray, moveTimer, dragTimer, walkAnimation;
 let state = { x: 40, y: 120, mood: 72, fullness: 76, bond: 40, paused: false, alwaysOnTop: true };
@@ -62,21 +62,37 @@ function saveState() {
   try { fs.mkdirSync(path.dirname(statePath()), { recursive: true }); fs.writeFileSync(statePath(), JSON.stringify(state, null, 2)); } catch (_) {}
 }
 function workAreaFor(x, y) {
-  const d = screen.getDisplayNearestPoint({ x: Number(x) || 0, y: Number(y) || 0 });
+  const point = Number.isFinite(Number(x)) && Number.isFinite(Number(y)) ? { x: Number(x), y: Number(y) } : screen.getPrimaryDisplay().workArea;
+  const d = screen.getDisplayNearestPoint({ x: point.x, y: point.y });
   return d.workArea;
+}
+function windowExtent() {
+  if (win && !win.isDestroyed()) {
+    const bounds = win.getBounds();
+    return { width: bounds.width || SIZE.width, height: bounds.height || SIZE.height };
+  }
+  return { width: SIZE.width, height: SIZE.height };
 }
 function clamp(x, y) {
   const a = workAreaFor(x, y);
-  return { x: Math.max(a.x, Math.min(a.x + a.width - SIZE.width, Number(x) || a.x)), y: Math.max(a.y, Math.min(a.y + a.height - SIZE.height, Number(y) || a.y)) };
+  const extent = windowExtent();
+  const requestedX = Number.isFinite(Number(x)) ? Number(x) : a.x;
+  const requestedY = Number.isFinite(Number(y)) ? Number(y) : a.y;
+  const safeX = Math.max(a.x, Math.min(a.x + a.width - extent.width, requestedX));
+  const safeY = Math.max(a.y, Math.min(a.y + a.height - extent.height, requestedY));
+  return { x: safeX, y: safeY, clamped: safeX !== requestedX || safeY !== requestedY, workArea: a, extent, requestedX, requestedY };
 }
 function setPosition(x, y, persist = true) {
   if (!win) return;
-  const p = clamp(x, y); win.setPosition(Math.round(p.x), Math.round(p.y), false);
-  state.x = p.x; state.y = p.y; if (persist) saveState();
+  const p = clamp(x, y);
+  win.setBounds({ x: Math.round(p.x), y: Math.round(p.y), width: SIZE.width, height: SIZE.height }, false);
+  const actual = win.getBounds(); state.x = actual.x; state.y = actual.y; if (persist) saveState();
+  if (p.clamped) appendDiagnostic('position-clamped', { requested: { x: p.requestedX, y: p.requestedY }, actual: { x: actual.x, y: actual.y }, windowSize: { width: actual.width, height: actual.height }, workArea: p.workArea });
 }
 function randomDestination() {
   const a = workAreaFor(state.x, state.y);
-  return { x: a.x + Math.random() * Math.max(1, a.width - SIZE.width), y: a.y + Math.random() * Math.max(1, a.height - SIZE.height) };
+  const extent = windowExtent();
+  return { x: a.x + Math.random() * Math.max(1, a.width - extent.width), y: a.y + Math.random() * Math.max(1, a.height - extent.height) };
 }
 function walkOnce() {
   if (!win || state.paused || !win.isVisible()) return;
@@ -123,7 +139,7 @@ function createWindow() {
     const preloadPath = path.join(__dirname, 'preload.js');
     const rendererPath = path.join(__dirname, 'renderer.html');
     appendDiagnostic('window-create', { preloadPath, preloadExists: fs.existsSync(preloadPath), rendererPath, rendererExists: fs.existsSync(rendererPath) });
-    win = new BrowserWindow({ width: SIZE.width, height: SIZE.height, frame: false, transparent: true, resizable: false, movable: true, hasShadow: false, skipTaskbar: true, alwaysOnTop: state.alwaysOnTop, show: false, backgroundColor: '#00000000', webPreferences: { preload: preloadPath, contextIsolation: true, nodeIntegration: false, sandbox: false } });
+    win = new BrowserWindow({ width: SIZE.width, height: SIZE.height, frame: false, transparent: true, resizable: false, maximizable: false, fullscreenable: false, movable: true, hasShadow: false, skipTaskbar: true, alwaysOnTop: state.alwaysOnTop, show: false, backgroundColor: '#00000000', webPreferences: { preload: preloadPath, contextIsolation: true, nodeIntegration: false, sandbox: false } });
     win.setMenuBarVisibility(false);
     win.loadFile(rendererPath).catch((error) => appendDiagnostic('renderer-load-error', { error: error.message, stack: error.stack }));
     win.webContents.on('did-fail-load', (_, code, description, url) => appendDiagnostic('renderer-did-fail-load', { code, description, url }));
@@ -133,9 +149,20 @@ function createWindow() {
     appendDiagnostic('window-create-error', { error: error.message, stack: error.stack });
     return;
   }
-  win.once('ready-to-show', () => { setPosition(state.x, state.y, false); win.show(); scheduleWalk(); });
+  win.once('ready-to-show', () => {
+    win.show(); setPosition(state.x, state.y, false);
+    const bounds=win.getBounds(); appendDiagnostic('window-ready', { bounds, workArea: workAreaFor(bounds.x, bounds.y) });
+    if (process.argv.includes('--jinzhu-test-boundaries')) {
+      const a=screen.getPrimaryDisplay().workArea;
+      [[a.x-100,a.y-100],[a.x+a.width+100,a.y-100],[a.x+a.width+100,a.y+a.height+100],[a.x-100,a.y+a.height+100]].forEach((point) => setPosition(point[0],point[1],false));
+      appendDiagnostic('boundary-smoke-complete', { bounds: win.getBounds(), workArea: a, windowSize: windowExtent() });
+    }
+    scheduleWalk();
+  });
   win.on('move', () => { const p = win.getPosition(); state.x = p[0]; state.y = p[1]; saveState(); });
-  screen.on('display-metrics-changed', () => setPosition(state.x, state.y));
+  screen.on('display-metrics-changed', () => { appendDiagnostic('display-metrics-changed', {}); setPosition(state.x, state.y); });
+  screen.on('display-added', () => setPosition(state.x, state.y));
+  screen.on('display-removed', () => setPosition(state.x, state.y));
 }
 app.whenReady().then(() => {
   if (!instanceLock) return;
@@ -151,6 +178,7 @@ app.on('before-quit', () => { clearTimeout(moveTimer); clearTimeout(dragTimer); 
 ipcMain.handle('overlay:get-state', () => state);
 ipcMain.handle('overlay:get-bootstrap', () => bootstrapInfo());
 ipcMain.on('overlay:image-result', (_, result) => appendDiagnostic('image-' + (result && result.status || 'unknown'), result));
+ipcMain.on('overlay:viewport-metrics', (_, metrics) => { const bounds=win && win.getBounds(); appendDiagnostic('viewport-metrics', Object.assign({}, metrics || {}, { windowBounds: bounds, workArea: bounds && workAreaFor(bounds.x, bounds.y), petPosition: { x: state.x, y: state.y } })); });
 ipcMain.on('overlay:save-state', (_, next) => { state = Object.assign(state, next || {}); saveState(); });
 ipcMain.on('overlay:set-position', (_, p) => setPosition(p && p.x, p && p.y));
 ipcMain.on('overlay:drag-delta', (_, delta) => { if (!win || !delta) return; const p = win.getPosition(); setPosition(p[0] + (Number(delta.dx) || 0), p[1] + (Number(delta.dy) || 0)); });
