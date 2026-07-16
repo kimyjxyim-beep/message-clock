@@ -6,7 +6,7 @@ if (process.stdout) process.stdout.on('error', () => {});
 if (process.stderr) process.stderr.on('error', () => {});
 
 const SIZE = { width: 280, height: 220 };
-const HOME_SIZE = { width: 360, height: 230 };
+const HOME_SIZE = { width: 300, height: 190 };
 let win, homeWin, tray, behaviorTimer, dragTimer, walkAnimation, currentBehavior = 'idle', lastSpeech = '', movementTarget = null, scheduleVersion = 0;
 let state = { x: 40, y: 120, homeX: null, homeY: null, mood: 72, fullness: 76, hydration: 72, bond: 40, foodAmount: 3, paused: false, alwaysOnTop: true, lastNeedsUpdate: Date.now() };
 
@@ -37,6 +37,7 @@ function assetDirectory() {
     : path.join(app.getAppPath(), '..', 'assets', 'jinzhu');
 }
 function assetPath(fileName) { return path.join(assetDirectory(), fileName); }
+function desktopAnimationDirectory(){return app.isPackaged?path.join(process.resourcesPath,'assets','jinzhu-desktop'):path.join(app.getAppPath(),'..','assets','jinzhu-desktop');}
 function propDirectory() {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'assets', 'jinzhu-home')
@@ -59,9 +60,10 @@ function bootstrapInfo() {
   try { files = fs.readdirSync(directory).filter((name) => /\.png$/i.test(name)); } catch (error) { appendDiagnostic('asset-directory-error', { directory, error: error.message }); }
   const assetUrls = {};
   files.forEach((name) => { assetUrls[name] = pathToFileURL(path.join(directory, name)).href; });
+  try { fs.readdirSync(desktopAnimationDirectory()).filter((name)=>/\.png$/i.test(name)).forEach((name)=>{assetUrls[name]=pathToFileURL(path.join(desktopAnimationDirectory(),name)).href;}); } catch(error){appendDiagnostic('desktop-animation-error',{error:error.message});}
   const propUrls = {};
   ['home-basket.png','food-bowl.png','water-bowl.png'].forEach((name) => { const file=propPath(name); if (fs.existsSync(file)) propUrls[name]=pathToFileURL(file).href; });
-  return { packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath(), assetDirectory: directory, idlePath, idleExists: fs.existsSync(idlePath), assetCount: files.length, assetUrls, propUrls, diagnosticPath: diagnosticPath() };
+  return { packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath(), assetDirectory: directory, idlePath, idleExists: fs.existsSync(idlePath), assetCount: Object.keys(assetUrls).length, assetUrls, propUrls, diagnosticPath: diagnosticPath() };
 }
 function loadState() {
   try {
@@ -161,20 +163,20 @@ function moveTo(target,moveState,duration,onArrive){
 }
 function homeTarget(type){
   if(!homeWin||homeWin.isDestroyed())return explorationTarget('corner'); const b=homeWin.getBounds();
-  if(type==='food')return{x:b.x+125,y:b.y+45,type:'food-bowl'};
-  if(type==='water')return{x:b.x+187,y:b.y+45,type:'water-bowl'};
-  return{x:b.x-55,y:b.y+10,type:'bed'};
+  if(type==='food')return{x:b.x+23,y:b.y-35,type:'food-bowl'};
+  if(type==='water')return{x:b.x+78,y:b.y-35,type:'water-bowl'};
+  return{x:b.x-52,y:b.y-138,type:'bed-top'};
 }
 function goToLifePlace(type,userInitiated){
   const target=homeTarget(type), moving=type==='bed'?'go-home':type==='food'?'go-to-food':'go-to-water';
-  const speech=type==='bed'?sayFrom(['我返窝窝瞓阵先。','今日巡逻完毕，晚安啦。']):type==='food'?sayFrom(['饭饭时间到啦。','多谢主人，我开餐啦。']):'饮啖水先。';
+  const speech=type==='bed'?sayFrom(['我返窝窝瞓阵先。','今日巡逻完毕，晚安啦。']):type==='food'?sayFrom(['饭饭时间到啦。','多谢你，我开餐啦。']):'饮啖水先。';
   if(win&&!win.isDestroyed()) win.webContents.send('overlay:speech',speech);
   moveTo(target,moving,randomBetween(3500,8000),()=>{
     if(win&&!win.isDestroyed()){win.setAlwaysOnTop(state.alwaysOnTop,'pop-up-menu');win.moveTop();}
     if(type==='bed'){
       sendBehavior('enter-bed',2600,''); scheduleTask(()=>{sendBehavior('sleep-in-bed',randomBetween(30000,90000),sayFrom(['窝窝好舒服，你都早点休息。','唔好嘈我，我发紧梦呀。']));scheduleBehavior(randomBetween(30000,90000));},2600);
     }else if(type==='food'){
-      sendBehavior('eat-at-bowl',11000,sayFrom(['今日份食物好香。','多谢主人，我开餐啦。'])); scheduleTask(()=>{state.fullness=Math.min(100,state.fullness+35);state.foodAmount=Math.max(0,(state.foodAmount||0)-1);saveState();sendBehavior('happy',2400,'食饱啦，继续巡逻。');scheduleBehavior(5000);},11000);
+      sendBehavior('eat-at-bowl',11000,sayFrom(['今日份食物好香。','多谢你，我开餐啦。'])); scheduleTask(()=>{state.fullness=Math.min(100,state.fullness+35);state.foodAmount=Math.max(0,(state.foodAmount||0)-1);saveState();sendBehavior('happy',2400,'食饱啦，继续巡逻。');scheduleBehavior(5000);},11000);
     }else{
       sendBehavior('drink-at-bowl',9000,'我饮水，你都要饮。'); scheduleTask(()=>{state.hydration=Math.min(100,state.hydration+40);saveState();sendBehavior('happy',2200,'饮完啦。');scheduleBehavior(5000);},9000);
     }
@@ -217,7 +219,7 @@ function reactToInteraction(action) {
   const reactions = [
     ['happy', '摸到我啦。'], ['pet', '嗯，舒服。'], ['blink', '再摸一下嘛。'],
     ['look', '你终于发现我啦。'], ['roll', '我而家心情好好。'], ['stretch', '陪我行两步先。'],
-    ['groom', '轻轻摸，唔好整乱我啲毛。'], ['yawn', '主人今日辛苦啦。'],
+    ['groom', '轻轻摸，唔好整乱我啲毛。'], ['yawn', '今日辛苦啦。'],
     ['scratch', '金主批准你继续工作。'], ['surprised', '今日都记得陪我。']
   ];
   if (Math.random() < .2) {
@@ -256,7 +258,7 @@ function makeTray() {
 function setHomePosition(x,y,persist=true){
   if(!homeWin)return; const a=screen.getDisplayNearestPoint({x:Number(x)||0,y:Number(y)||0}).workArea;
   const safeX=Math.max(a.x+55,Math.min(a.x+a.width-HOME_SIZE.width-110,Number(x)||a.x+55));
-  const safeY=Math.max(a.y,Math.min(a.y+a.height-HOME_SIZE.height,Number(y)||a.y));
+  const safeY=Math.max(a.y+140,Math.min(a.y+a.height-HOME_SIZE.height,Number(y)||a.y+140));
   homeWin.setBounds({x:Math.round(safeX),y:Math.round(safeY),width:HOME_SIZE.width,height:HOME_SIZE.height},false);
   const b=homeWin.getBounds();state.homeX=b.x;state.homeY=b.y;if(persist)saveState();
 }

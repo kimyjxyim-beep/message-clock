@@ -4,7 +4,7 @@
   var pointer=null,timer=null;
   function say(text){bubble.textContent=text;bubble.classList.add('show');clearTimeout(timer);timer=setTimeout(function(){bubble.classList.remove('show');},3000);}
   function setImage(button,url){var img=button.querySelector('img');if(url){img.src=url;img.addEventListener('error',function(){img.style.visibility='hidden';console.error('[Jinzhu home] image failed',url);});}}
-  function action(type){window.jinzhuHome.action(type);if(type==='bed')say('想返窝窝休息？');else if(type==='food')say('多谢主人，我开餐啦。');else say('饮水时间到啦。');}
+  function action(type){window.jinzhuHome.action(type);if(type==='bed')say('想返窝窝休息？');else if(type==='food')say('多谢你，我开餐啦。');else say('饮水时间到啦。');}
   bed.addEventListener('pointerdown',function(e){pointer={id:e.pointerId,x:e.screenX,y:e.screenY,lastX:e.screenX,lastY:e.screenY,dragged:false};bed.setPointerCapture(e.pointerId);});
   bed.addEventListener('pointermove',function(e){if(!pointer)return;if(Math.abs(e.screenX-pointer.x)+Math.abs(e.screenY-pointer.y)>5)pointer.dragged=true;if(pointer.dragged){window.jinzhuHome.dragDelta({dx:e.screenX-pointer.lastX,dy:e.screenY-pointer.lastY});pointer.lastX=e.screenX;pointer.lastY=e.screenY;}});
   function finish(e){if(!pointer)return;var dragged=pointer.dragged;try{bed.releasePointerCapture(pointer.id);}catch(_){}pointer=null;if(!dragged)action('bed');}

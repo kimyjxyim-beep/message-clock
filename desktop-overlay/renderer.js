@@ -12,10 +12,10 @@
     play:['roll-1.png','roll-2.png','roll-3.png','roll-4.png'], roll:['roll-1.png','roll-2.png','roll-3.png','roll-4.png','roll-5.png','roll-6.png'],
     held:['roll-2.png','roll-3.png'], fall:['roll-4.png','roll-5.png','roll-6.png'], surprised:['look-1.png','look-5.png'], rain:['rain-1.png','rain-2.png','rain-3.png','rain-4.png'], reminder:['idle-1.png','look-1.png'],
     investigate:['walk-1.png','walk-2.png','walk-3.png','walk-4.png'], 'go-home':['walk-1.png','walk-2.png','walk-3.png','walk-4.png'],
-    'enter-bed':['climb-1.png','climb-2.png','perch-1.png'], 'sleep-in-bed':['sleep-curl-1.png','sleep-curl-2.png','sleep-curl-3.png'],
-    'stretch-after-sleep':['sleep-curl-2.png','idle-4.png','perch-1.png','perch-2.png'], 'go-to-food':['walk-1.png','walk-2.png','walk-3.png','walk-4.png'],
+    'enter-bed':['bed-1.png','bed-2.png','bed-3.png','bed-4.png'], 'sleep-in-bed':['bed-5.png','bed-6.png'],
+    'stretch-after-sleep':['bed-6.png','bed-4.png','idle-4.png','perch-2.png'], 'go-to-food':['walk-1.png','walk-2.png','walk-3.png','walk-4.png'],
     'eat-at-bowl':['eat-1.png','eat-2.png','eat-3.png','eat-4.png','eat-5.png'], 'go-to-water':['walk-1.png','walk-2.png','walk-3.png','walk-4.png'],
-    'drink-at-bowl':['eat-2.png','eat-3.png','eat-4.png']
+    'drink-at-bowl':['eat-1.png','eat-2.png','eat-3.png','eat-4.png','eat-5.png']
   };
   function say(text) { if(!text)return; bubble.textContent=text; bubble.classList.add('show'); clearTimeout(bubbleTimer); bubbleTimer=setTimeout(function(){bubble.classList.remove('show');},4200); }
   function showFrame(name) { var url=assetUrls[name]; if(!url){console.error('[Jinzhu] Missing asset:',name);return;} cat.src=url; }
