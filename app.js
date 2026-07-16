@@ -1,3 +1,12 @@
+/* Lively Wallpaper mode: keep the clock/weather atmosphere, hide pet controls.
+   Use a string fallback so the page still works on old iPad Safari. */
+(function () {
+    try {
+        var isWallpaper = /(?:^|&)wallpaper=1(?:&|$)/.test((location.search || '').replace(/^\?/, ''));
+        if (isWallpaper && document.documentElement) document.documentElement.classList.add('wallpaper-mode');
+    } catch (e) { /* wallpaper mode is optional */ }
+}());
+
 function flipUpdate(prefix, newValue) {
     var card = document.getElementById(prefix + "-card");
     var topNum = document.getElementById(prefix + "-top-num");

@@ -773,6 +773,22 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .jinzhu-debug-actions button { min-width: 30px; min-height: 28px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; background: rgba(255,255,255,.12); color: #fff; font: inherit; }
 @media (max-width: 600px) { .jinzhu-bubble { min-width: 120px; width: max-content; max-width: 70vw; } }
 
+/* Optional Lively Wallpaper presentation.  The independent Windows overlay
+   owns the interactive pet, while this page remains a calm clock/weather layer. */
+html.wallpaper-mode .jinzhu-home,
+html.wallpaper-mode .jinzhu-panel,
+html.wallpaper-mode .jinzhu-reminder,
+html.wallpaper-mode .jinzhu-world-debug,
+html.wallpaper-mode .jinzhu-debug,
+html.wallpaper-mode .jinzhu-actions,
+html.wallpaper-mode .jinzhu-bubble,
+html.wallpaper-mode #jinzhu-world-controls { display: none !important; }
+html.wallpaper-mode .weather-effects { opacity: .3; }
+html.wallpaper-mode .flip-card,
+html.wallpaper-mode .weather-card,
+html.wallpaper-mode .message { transition: none !important; }
+html.wallpaper-mode *, html.wallpaper-mode *::before, html.wallpaper-mode *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+
 /* 金主：轻量互动、旧 iPad 坐标回退与时钟锚点。 */
 .jinzhu-home.jinzhu-legacy-position .jinzhu-walker {
     transform: none !important;
