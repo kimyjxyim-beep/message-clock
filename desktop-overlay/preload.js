@@ -8,8 +8,10 @@ contextBridge.exposeInMainWorld('jinzhuOverlay', {
   setPosition: (p) => ipcRenderer.send('overlay:set-position', p),
   dragDelta: (delta) => ipcRenderer.send('overlay:drag-delta', delta),
   setDragging: (active) => ipcRenderer.send('overlay:dragging', active),
+  interaction: (action) => ipcRenderer.send('overlay:interaction', action),
   togglePause: () => ipcRenderer.send('overlay:toggle-pause'),
   toggleTop: () => ipcRenderer.send('overlay:toggle-top'),
   hide: () => ipcRenderer.send('overlay:hide'),
-  onWalk: (fn) => ipcRenderer.on('overlay:walk', (_, data) => fn(data))
+  onBehavior: (fn) => ipcRenderer.on('overlay:behavior', (_, data) => fn(data)),
+  onSpeech: (fn) => ipcRenderer.on('overlay:speech', (_, text) => fn(text))
 });

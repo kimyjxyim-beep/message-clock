@@ -38,7 +38,11 @@ npm start
 npm run dist
 ```
 
-输出到：`desktop-overlay/dist/Jinzhu-Desktop-Pet-1.0.1-portable.exe`
+输出到：`desktop-overlay/dist/Jinzhu-Desktop-Pet-1.1.0-portable.exe`
+
+Windows 版包含两个互相独立的透明小窗口：金主活动窗口，以及可拖动并记住位置的生活区。生活区使用 `assets/jinzhu-home/` 内三个独立透明素材：下层拱门猫屋、上层开放藤篮的 `home-basket.png`，以及可分别点击的 `food-bowl.png` 和 `water-bowl.png`。点击窝、饭碗或水碗后，金主会实际走到对应位置，再睡觉、吃饭或喝水。
+
+金主路线只使用 Electron `screen.getAllDisplays()` 返回的 Windows `workArea`，不会读取 Lively 页面、时钟、天气卡或留言板 DOM，也不会把网页元素当成碰撞墙。移动看门狗每次行走后检查三秒位移；若少于 2px，会取消目标、反向脱离并选择新目标。
 
 请注意：双击 Windows Overlay `.exe` 只会启动透明桌面宠物，不会修改 Windows 壁纸。完整桌面体验需要同时运行两层：Lively Wallpaper 负责时钟背景，portable `.exe` 负责可以出现在其他窗口上方的金主。
 
