@@ -26,15 +26,18 @@
     if (!home || !walker || !cat || !catImage || !bubble || !panel) return;
 
     var params = queryParameters(location.search);
-    var debugMode = params.get("jinzhuDebug") === "1";
+    var debugMode = params.get("jinzhuDebug") === "1" || params.get("jinzhuTestMode") === "1";
     var debugHold = debugMode && params.get("jinzhuHold") === "1";
     var debugNormalSpeed = debugMode && params.get("jinzhuSpeed") === "normal";
     var debugDelayedAction = debugMode && params.get("jinzhuDelay") === "1";
     var debugNoClimb = debugMode && params.get("jinzhuNoClimb") === "1";
     var debugOpenPanel = debugMode && params.get("jinzhuPanel") === "1";
     var debugClickOutcome = debugMode ? params.get("jinzhuClick") : null;
+    var mockTime = params.get("mockTime");
     var debugHour = Number(params.get("jinzhuHour"));
-    var debugAction = params.get("jinzhuAction");
+    if (debugMode && mockTime && /^\d{1,2}:\d{2}$/.test(mockTime)) debugHour = Number(mockTime.split(":")[0]) + Number(mockTime.split(":")[1]) / 60;
+    var debugAction = params.get("jinzhuAction") || params.get("forceState");
+    var motionSpeed = Math.max(1, Math.min(20, Number(params.get("motionSpeed")) || 1));
     var debugPoint = params.get("jinzhuPoint");
     var storageKey = debugMode ? "messageClockJinzhuStateDebug" : "messageClockJinzhuState";
     var petStorage = new window.LocalStorageAdapter("");
@@ -72,11 +75,13 @@
     var simpleMotion = lowPowerDevice;
     var climbing = false;
     var perched = false;
+    var clockAnchorActive = "";
+    var clockAnchorTimer = null;
     var spriteBase = "assets/jinzhu/";
     var behaviorClasses = [
         "sleeping", "sleepy", "idle", "look-around", "grooming",
         "walking", "playing", "eating", "happy", "rain", "heat", "fan",
-        "climbing", "perched", "climbing-down"
+        "climbing", "perched", "climbing-down", "clock-perch", "clock-hook", "clock-nap", "clock-peek", "colon-sit"
     ];
     var sprites = {
         idle: ["idle-1.png", "idle-2.png", "idle-3.png", "idle-5.png", "idle-2.png"],
@@ -93,12 +98,18 @@
         fan: ["fan-1.png", "fan-2.png", "fan-3.png", "fan-2.png"],
         climbing: ["climb-1.png", "climb-2.png", "climb-3.png", "climb-4.png", "climb-5.png"],
         perched: ["perch-1.png", "perch-2.png"],
-        "climbing-down": ["climb-down-1.png", "climb-down-2.png", "climb-down-3.png"]
+        "climbing-down": ["climb-down-1.png", "climb-down-2.png", "climb-down-3.png"],
+        "clock-perch": ["perch-1.png", "perch-2.png"],
+        "clock-hook": ["climb-2.png", "climb-3.png", "climb-4.png"],
+        "clock-nap": ["sleep-curl-1.png", "sleep-curl-2.png", "sleep-curl-3.png"],
+        "clock-peek": ["clock-peek-1.png"],
+        "colon-sit": ["idle-1.png", "idle-2.png"]
     };
     var spriteSpeeds = {
         idle: 1100, walking: 145, "look-around": 700, grooming: 760,
         playing: 420, happy: 330, eating: 620, sleepy: 1800, sleeping: 3200, rain: 1100, fan: 620,
-        climbing: 620, perched: 2200, "climbing-down": 680
+        climbing: 620, perched: 2200, "climbing-down": 680,
+        "clock-perch": 2200, "clock-hook": 750, "clock-nap": 3200, "clock-peek": 2000, "colon-sit": 1800
     };
     var now = Date.now();
     var state = {
@@ -178,7 +189,7 @@
 
     function scaledDuration(milliseconds) {
         if (debugNormalSpeed) return milliseconds;
-        return debugMode ? Math.max(700, milliseconds / 60) : milliseconds;
+        return debugMode ? Math.max(250, milliseconds / (60 * motionSpeed)) : milliseconds;
     }
 
     function currentDate() {
@@ -290,6 +301,7 @@
         var useLeft = !useRight && spaceOnLeft >= bubbleWidth + 8;
         home.classList.toggle("bubble-right", useRight);
         home.classList.toggle("bubble-left", useLeft);
+        home.classList.toggle("bubble-above", !useRight && !useLeft);
         if (bubbleText) bubbleText.textContent = text;
         else bubble.textContent = text;
         bubble.classList.add("show");
@@ -317,9 +329,18 @@
         renderStats();
     }
 
+    function viewportSize() {
+        var vv = window.visualViewport;
+        var width = vv && Number(vv.width);
+        var height = vv && Number(vv.height);
+        if (!isFinite(width) || width < 120) width = Number(window.innerWidth) || Number(document.documentElement.clientWidth) || 390;
+        if (!isFinite(height) || height < 120) height = Number(window.innerHeight) || Number(document.documentElement.clientHeight) || 844;
+        return { width: Math.max(320, width), height: Math.max(320, height), usedFallback: !(vv && isFinite(Number(vv.width)) && isFinite(Number(vv.height))) };
+    }
     function getViewportBounds() {
         var petWidth = walker.offsetWidth || 116;
         var petHeight = walker.offsetHeight || 116;
+        var viewport = viewportSize();
         var rootStyle = getComputedStyle(document.documentElement);
         var safeTop = Math.max(8, parseFloat(rootStyle.getPropertyValue("--safe-top")) || 0);
         var safeBottom = Math.max(
@@ -328,9 +349,9 @@
         );
         return {
             minX: 8,
-            maxX: Math.max(8, window.innerWidth - petWidth - 8),
+            maxX: Math.max(24, viewport.width - petWidth - 8),
             minY: safeTop,
-            maxY: Math.max(safeTop, window.innerHeight - petHeight - safeBottom - 8)
+            maxY: Math.max(safeTop + 24, viewport.height - petHeight - safeBottom - 8)
         };
     }
 
@@ -341,9 +362,14 @@
 
     function clampPosition(position) {
         var bounds = getViewportBounds();
+        var fallbackX = bounds.minX + (bounds.maxX - bounds.minX) * .5;
+        var fallbackY = bounds.minY + (bounds.maxY - bounds.minY) * .62;
+        var x = Number(position && position.x), y = Number(position && position.y);
+        if (!isFinite(x)) x = fallbackX;
+        if (!isFinite(y)) y = fallbackY;
         return {
-            x: Math.max(bounds.minX, Math.min(bounds.maxX, position.x)),
-            y: Math.max(bounds.minY, Math.min(bounds.maxY, position.y))
+            x: Math.max(bounds.minX, Math.min(bounds.maxX, x)),
+            y: Math.max(bounds.minY, Math.min(bounds.maxY, y))
         };
     }
 
@@ -358,7 +384,7 @@
         // direct left/top fallback so the pet is not stuck at (0, 0).
         if (!legacyPosition) {
             var probe = getComputedStyle(home).getPropertyValue("--jinzhu-x");
-            legacyPosition = !probe;
+            legacyPosition = oldIPad || !probe;
             if (legacyPosition) home.className += " jinzhu-legacy-position";
         }
         if (legacyPosition) {
@@ -501,6 +527,102 @@
             landing: clampPosition({ x: useLeft ? rect.left - w - 12 : rect.right + 12, y: rect.bottom - h * .18 }),
             facing: useLeft ? 1 : -1
         };
+    }
+
+    function clockDigitRects() {
+        var result = [], hour = document.getElementById("hour-card"), minute = document.getElementById("minute-card"), colon = document.querySelector(".colon");
+        var groups = [{ element: hour, text: document.getElementById("hour-top-num") }, { element: minute, text: document.getElementById("minute-top-num") }];
+        for (var i = 0; i < groups.length; i++) {
+            if (!groups[i].element) continue;
+            var rect = groups[i].element.getBoundingClientRect();
+            if (!isFinite(rect.left) || rect.width < 20 || rect.height < 20) continue;
+            var value = groups[i].text ? String(groups[i].text.textContent || "00") : "00";
+            while (value.length < 2) value = "0" + value;
+            for (var part = 0; part < 2; part++) result.push({
+                name: (i === 0 ? "hour-" : "minute-") + part,
+                digit: value.charAt(part),
+                rect: { left: rect.left + rect.width * part / 2, top: rect.top, width: rect.width / 2, height: rect.height, right: rect.left + rect.width * (part + 1) / 2, bottom: rect.bottom }
+            });
+        }
+        if (colon) {
+            var colonRect = colon.getBoundingClientRect();
+            if (isFinite(colonRect.left) && colonRect.width > 2) result.push({ name: "colon", digit: ":", rect: colonRect });
+        }
+        return result;
+    }
+
+    function clockAnchorPoint(kind) {
+        var points = clockDigitRects(), w = walker.offsetWidth || 116, h = walker.offsetHeight || 116;
+        if (!points.length) return pointOnTop(".clock");
+        var choices = points.filter(function (item) { return item.name !== "colon"; });
+        var target = choices[Math.floor(Math.random() * choices.length)] || points[0];
+        if (kind === "clock-hook") {
+            var hooks = choices.filter(function (item) { return "0689".indexOf(item.digit) >= 0; });
+            target = hooks.length ? hooks[Math.floor(Math.random() * hooks.length)] : choices[0];
+        } else if (kind === "colon-sit") {
+            for (var c = 0; c < points.length; c++) if (points[c].name === "colon") target = points[c];
+        }
+        if (!target || !target.rect) return pointOnTop(".clock");
+        var rect = target.rect, point;
+        if (kind === "clock-hook") point = { x: rect.left + rect.width * .48 - w * .5, y: rect.top + rect.height * .19 - h * .28 };
+        else if (kind === "clock-peek") point = { x: rect.right - w * .18, y: rect.top + rect.height * .17 - h * .14 };
+        else if (kind === "colon-sit") point = { x: rect.left + rect.width * .5 - w * .5, y: rect.top + rect.height * .45 - h * .25 };
+        else point = { x: rect.left + rect.width * .5 - w * .5, y: rect.top - h * .63 };
+        return { point: clampPosition(point), target: target };
+    }
+
+    function updateClockAnchorOverlay() {
+        var overlay = document.getElementById("jinzhu-clock-anchor-debug");
+        if (!debugMode) { if (overlay) overlay.parentNode.removeChild(overlay); return; }
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.id = "jinzhu-clock-anchor-debug";
+            overlay.className = "jinzhu-clock-anchor-debug";
+            document.body.appendChild(overlay);
+        }
+        overlay.innerHTML = "";
+        clockDigitRects().forEach(function (item) {
+            var marker = document.createElement("i"), rect = item.rect;
+            marker.title = item.name + " " + item.digit;
+            marker.style.left = Math.round(rect.left + rect.width * .5 - 4) + "px";
+            marker.style.top = Math.round(rect.top - 4) + "px";
+            overlay.appendChild(marker);
+        });
+    }
+
+    function endClockAnchor() {
+        clearTimeout(clockAnchorTimer);
+        clockAnchorTimer = null;
+        clockAnchorActive = "";
+        home.classList.remove("on-clock");
+        home.style.removeProperty("--jinzhu-perch-scale");
+        setStatus("idle");
+        schedule(randomBetween(45, 120) * 1000, chooseNextBehavior);
+    }
+
+    function startClockAnchor(kind, force) {
+        if (!force && (Date.now() < Number(state.nextClimbAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches)) return false;
+        if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan") return false;
+        var anchor = clockAnchorPoint(kind);
+        if (!anchor || !anchor.point) return false;
+        clearScheduler();
+        clearTimeout(clockAnchorTimer);
+        clockAnchorActive = kind;
+        state.nextClimbAllowed = Date.now() + randomBetween(10, 25) * 60000;
+        home.classList.add("on-clock");
+        home.style.setProperty("--jinzhu-perch-scale", kind === "clock-hook" ? ".64" : kind === "clock-peek" ? ".58" : kind === "colon-sit" ? ".58" : ".74");
+        setStatus("walking");
+        setPosition(anchor.point, scaledDuration(randomBetween(2, 4) * 1000), false);
+        schedule(2800, function () {
+            if (!clockAnchorActive) return;
+            setStatus(kind);
+            if (kind === "clock-nap") say("这里刚好可以睡一会。");
+            else if (kind === "clock-peek") say("我从时间后面看住你。");
+            clockAnchorTimer = setTimeout(endClockAnchor, debugMode ? 3500 : randomBetween(20, 90) * 1000);
+        }, true);
+        updateClockAnchorOverlay();
+        saveState();
+        return true;
     }
 
     function finishClockClimb() {
@@ -702,6 +824,8 @@
     }
 
     function forceDebugAction(action) {
+        var clockStates = { clockPerch: "clock-perch", clockHook: "clock-hook", clockNap: "clock-nap", clockPeek: "clock-peek", colonSit: "colon-sit" };
+        if (clockStates[action]) { startClockAnchor(clockStates[action], true); return; }
         if (action === "sleeping") startSleeping();
         else if (action === "sleepy") startSleepy();
         else if (action === "walking") { state.nextWalkAllowed = 0; startWalking(); }
@@ -748,7 +872,7 @@
         else if (action === "look-around") startLookAround();
         else if (action === "grooming") startGrooming();
         else if (action === "walking") {
-            if (Math.random() < .08 && startClockClimb(false)) return;
+            if (Math.random() < .08 && startClockAnchor(routinePeriod() === "night" ? "clock-nap" : ["clock-perch", "clock-hook", "clock-peek", "colon-sit"][Math.floor(Math.random() * 4)], false)) return;
             startWalking();
         }
         else if (action === "playing") startPlaying();
@@ -965,7 +1089,7 @@
 
     function startImmersiveRun() {
         clearScheduler();
-        if (!debugNoClimb && Math.random() < .16 && startClockClimb(false)) return;
+        if (!debugNoClimb && Math.random() < .16 && startClockAnchor(["clock-perch", "clock-hook", "clock-peek", "colon-sit"][Math.floor(Math.random() * 4)], false)) return;
         var replies = ["我行过嚟睇下你。", "我去第二度坐阵。", "借借，我巡下屋企。", "唔好成日撳我呀。"];
         var duration = scaledDuration(randomBetween(2, 5) * 1000);
         setStatus("walking");
@@ -1141,13 +1265,6 @@
         var action = button.getAttribute("data-jinzhu-action");
         if (action === "pet") petJinzhu();
         if (action === "feed") beginFeeding();
-        if (action === "chat") {
-            markImmersiveInteraction();
-            setStatus("idle");
-            if (window.JinzhuWorld && window.JinzhuWorld.openChat) window.JinzhuWorld.openChat();
-            else say("同我讲句嘢啦。" );
-            window.dispatchEvent(new CustomEvent("jinzhu:interaction", { detail: { action: "chat" } }));
-        }
         if (action === "care" && window.JinzhuWorld && window.JinzhuWorld.openCare) {
             markImmersiveInteraction();
             window.JinzhuWorld.openCare();
@@ -1155,7 +1272,11 @@
     });
 
     function recalculatePosition() {
-        if (perched) {
+        if (clockAnchorActive) {
+            var anchor = clockAnchorPoint(clockAnchorActive);
+            if (anchor && anchor.point) setPosition(anchor.point, 0, false);
+            else endClockAnchor();
+        } else if (perched) {
             var geometry = clockClimbGeometry();
             if (geometry) setPosition(geometry.top, 0);
         } else setPosition(restoredPosition(), 0);
@@ -1174,6 +1295,7 @@
     window.addEventListener("resize", recalculatePosition);
     window.addEventListener("orientationchange", function () { setTimeout(recalculatePosition, 120); });
     window.addEventListener("scroll", recalculatePosition, { passive: true });
+    window.addEventListener("jinzhu:clock-change", function () { recalculatePosition(); updateClockAnchorOverlay(); });
 
     document.addEventListener("visibilitychange", function () {
         clearScheduler();
@@ -1240,6 +1362,8 @@
         openMenu: openInteractions,
         closeMenu: closeInteractions,
         startClockClimb: function () { state.nextClimbAllowed = 0; return startClockClimb(true); },
+        startClockAnchor: function (kind) { return startClockAnchor(kind, true); },
+        forceMove: function () { state.nextWalkAllowed = 0; startWalking(); },
         requestRain: requestRain,
         requestHeat: requestHeat,
         activateCooling: activateCooling,
@@ -1269,6 +1393,18 @@
             }
         }
     };
+
+    if (debugMode) {
+        window.JinzhuDebug = {
+            forceMove: function () { state.nextWalkAllowed = 0; startWalking(); },
+            forceClockState: function (kind) { return startClockAnchor(kind, true); },
+            forceSleep: function () { startSleeping(); },
+            forceEat: function () { beginFeeding(); },
+            forceIPadFallback: function () { legacyPosition = true; home.classList.add("jinzhu-legacy-position"); setPosition({ x: NaN, y: NaN }, 0); },
+            clearCooldowns: function () { state.nextWalkAllowed = 0; state.nextClimbAllowed = 0; saveState(); },
+            info: function () { var b = getViewportBounds(); return { status: currentStatus, position: currentPosition, bounds: b, visualViewportFallback: viewportSize().usedFallback, anchor: clockAnchorActive }; }
+        };
+    }
 
     catImage.addEventListener("error", function () {
         if (catImage.getAttribute("src") !== spriteBase + "idle-1.png") catImage.src = spriteBase + "idle-1.png";

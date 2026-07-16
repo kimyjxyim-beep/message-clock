@@ -59,6 +59,9 @@ function updateClock() {
 
     flipUpdate("hour", hourStr);
     flipUpdate("minute", minuteStr);
+    try {
+        window.dispatchEvent(new CustomEvent("jinzhu:clock-change", { detail: { hour: hourStr, minute: minuteStr } }));
+    } catch (e) {}
     
     // 每次更新時間時，檢查並切換背景主題
     updateTheme(hour);

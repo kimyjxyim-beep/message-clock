@@ -16,8 +16,8 @@
 
     var LocalStorageAdapter = window.LocalStorageAdapter;
     var params = queryParameters(location.search);
-    var debugMode = params.get("jinzhuDebug") === "1";
-    var forcedWeather = debugMode ? params.get("jinzhuWeather") : null;
+    var debugMode = params.get("jinzhuDebug") === "1" || params.get("jinzhuTestMode") === "1";
+    var forcedWeather = debugMode ? (params.get("jinzhuWeather") || params.get("forceRain")) : null;
     var storage = new LocalStorageAdapter(debugMode ? "messageClockDebug:" : "messageClock:");
     var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     var lowPowerDevice = /iPad.*OS (?:[1-9]|10)_/i.test(navigator.userAgent || "") || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2);
@@ -39,11 +39,12 @@
         work: { active: false, mode: "normal", effectiveMs: 0 },
         settings: {
             restEnabled: true, restMinutes: 50, waterEnabled: true, waterMinutes: 90,
-            restPausedDate: "", waterPausedDate: "", animationMode: "system", soundEnabled: false
+            mealEnabled: true, restPausedDate: "", waterPausedDate: "", mealPausedDate: "", animationMode: "system", soundEnabled: false
         },
         reminder: {
-            restSnoozeUntil: 0, waterSnoozeUntil: 0, lastRestPrompt: 0, lastWaterPrompt: 0,
-            restDeferrals: 0, waterDeferrals: 0
+            restSnoozeUntil: 0, waterSnoozeUntil: 0, mealSnoozeUntil: 0,
+            lastRestPrompt: 0, lastWaterPrompt: 0, lastMealPrompt: 0,
+            restDeferrals: 0, waterDeferrals: 0, mealDeferrals: 0
         },
         rain: { active: false, lastReminderAt: 0, lastEventAt: 0 },
         heat: { active: false, lastReminderAt: 0, lastTemperature: 0, coolingUntil: 0, fanCount: 0, airconCount: 0 },
@@ -255,7 +256,7 @@
     function handleWeather(detail) {
         weatherData = detail;
         storage.set("JinzhuWeather", weatherData);
-        var forced = debugMode ? params.get("jinzhuWeather") : null;
+        var forced = forcedWeather;
         var type = forced && debugWeatherCode(forced) !== undefined ? forced : weatherType(detail.code);
         applyRain(type);
         var forcedTemperature = debugMode && isFinite(Number(params.get("jinzhuTemperature"))) ? Number(params.get("jinzhuTemperature")) : null;
@@ -302,23 +303,27 @@
         else reminderQueue.push(type);
         flushQueues();
     }
+    function reminderCopy(type) {
+        var choices = {
+            water: ["喝水了吗？金主在监督你喔。", "先喝一口水啦。", "主人，补水时间到。", "今天喝水好像有点少喔。", "喝水先，等下再继续忙。"],
+            rest: ["眼睛休息一下，好不好？", "看屏幕好久啦，望远一点。", "起来走两步，金主等你。", "休息五分钟也很乖。"],
+            breakfast: ["早安，今天有吃早餐吗？", "空腹太久不乖喔。", "先吃点东西再开始忙吧。"],
+            lunch: ["中午啦，吃饭了吗？", "先吃饭啦，金主也想开饭。", "不要只顾着忙，午饭也很重要。"],
+            dinner: ["晚饭吃了吗？不要饿着自己。", "今天辛苦啦，记得好好吃饭。", "金主陪你慢慢收工。"]
+        };
+        var list = choices[type] || choices.water;
+        return list[Math.floor(Math.random() * list.length)];
+    }
     function showReminder(type) {
         if (!bridge || bridge.isBusy()) { queueReminder(type); return; }
         currentReminder = type;
         if (bridge && bridge.setReminder) bridge.setReminder(true);
-        var rest = type === "rest", heat = type === "heat";
+        var rest = type === "rest", heat = type === "heat", meal = type === "breakfast" || type === "lunch" || type === "dinner";
         if (rest) memory.reminder.waterSnoozeUntil = Math.max(Number(memory.reminder.waterSnoozeUntil || 0), Date.now() + (5 + Math.random() * 5) * 60000);
-        if (heat) {
-            reminderBox.innerHTML = "<p>超過 32°C，好熱呀。幫我降溫？</p><div><button data-heat='fan'>開風扇</button><button data-heat='aircon'>開冷氣</button><button data-heat='later'>稍後</button></div>";
-        } else {
-            reminderBox.innerHTML =
-                "<p>" + (rest ? "望遠少少，俾眼睛休息下。" : "主人，飲啖水先啦。") + "</p>" +
-                "<div><button data-reminder-done='" + type + "'>" + (rest ? "已休息" : "已喝水") + "</button>" +
-                "<button data-reminder-later='" + type + "'>" + (rest ? "10 分鐘後" : "15 分鐘後") + "</button>" +
-                "<button data-reminder-pause='" + type + "'>今日暫停</button></div>";
-        }
+        if (heat) reminderBox.innerHTML = "<p>超过 32°C，好热呀。帮我降温？</p><div><button data-heat='fan'>开风扇</button><button data-heat='aircon'>开冷气</button><button data-heat='later'>稍后</button></div>";
+        else reminderBox.innerHTML = "<p>" + reminderCopy(type) + "</p><div><button data-reminder-done='" + type + "'>" + (rest ? "知道啦" : meal ? "已吃饭" : "已喝水") + "</button><button data-reminder-later='" + type + "'>" + (rest ? "10 分钟后" : "15 分钟后") + "</button><button data-reminder-pause='" + type + "'>今日暂停</button></div>";
         reminderBox.hidden = false;
-        bridge.say(heat ? "主人，開冷氣定開風扇呀？" : rest ? "做咗好耐啦，起來郁一郁。" : "金主監督你補水。");
+        bridge.say(heat ? "主人，开风扇还是开冷气呀？" : reminderCopy(type));
     }
     function closeReminder() {
         reminderBox.hidden = true;
@@ -342,17 +347,28 @@
         var done = button.hasAttribute("data-reminder-done"), later = button.hasAttribute("data-reminder-later");
         if (done) {
             if (type === "rest") { memory.today.restCount++; memory.lastRestAt = Date.now(); memory.activeUseMs = 0; recordEvent("rest"); }
-            else { memory.today.waterCount++; memory.lastWaterAt = Date.now(); memory.waterUseMs = 0; recordEvent("water"); }
+            else if (type === "water") { memory.today.waterCount++; memory.lastWaterAt = Date.now(); memory.waterUseMs = 0; recordEvent("water"); }
+            else { memory.reminder.mealSnoozeUntil = Date.now() + 4 * 3600000; recordEvent(type); }
         } else if (later) {
             memory.reminder[type + "SnoozeUntil"] = Date.now() + (type === "rest" ? 10 : 15) * 60000;
             memory.reminder[type + "Deferrals"]++;
         } else {
-            memory.settings[type + "PausedDate"] = todayKey;
+            memory.settings[(type === "breakfast" || type === "lunch" || type === "dinner") ? "mealPausedDate" : type + "PausedDate"] = todayKey;
         }
         closeReminder();
         saveMemory();
     }
 
+    function mealDue() {
+        var hour = new Date().getHours() + new Date().getMinutes() / 60;
+        var type = hour >= 7 && hour < 10 ? "breakfast" : hour >= 11.5 && hour < 13.5 ? "lunch" : hour >= 18 && hour < 20.5 ? "dinner" : "";
+        if (!type || !memory.settings.mealEnabled || memory.settings.mealPausedDate === todayKey) return "";
+        if (Date.now() < Number(memory.reminder.mealSnoozeUntil || 0)) return "";
+        var lastPrompt = Number(memory.reminder.lastMealPrompt || 0);
+        if (Date.now() - lastPrompt < 60 * 60000) return "";
+        memory.reminder.lastMealPrompt = Date.now();
+        return type;
+    }
     function reminderDue(type) {
         var settings = memory.settings, reminder = memory.reminder;
         if (!settings[type + "Enabled"] || settings[type + "PausedDate"] === todayKey) return false;
@@ -361,7 +377,7 @@
         var basis = type === "rest" ? memory.activeUseMs : memory.waterUseMs;
         var lastPrompt = Number(reminder["last" + title(type) + "Prompt"] || 0);
         var courtesy = Math.min(Number(reminder[type + "Deferrals"] || 0) * 10, 30) * 60000;
-        if (basis >= threshold + courtesy && Date.now() - lastPrompt > 15 * 60000) {
+        if (basis >= threshold + courtesy && Date.now() - lastPrompt > 45 * 60000) {
             reminder["last" + title(type) + "Prompt"] = Date.now();
             return true;
         }
@@ -371,11 +387,8 @@
 
     function renderControls() {
         if (!controls) return;
-        controls.innerHTML =
-            "<section id='jinzhu-chat-box' hidden>" + chatHtml() + "</section>" +
-            "<section id='jinzhu-care-box' hidden>" + careHtml() + "</section>";
+        controls.innerHTML = "<section id='jinzhu-care-box' hidden>" + careHtml() + "</section>";
         showControl(activeControl);
-        renderChatHistory();
     }
     function moodButtons() {
         var current = { "開心": "happy", "普通": "normal", "有點累": "tired", "有點煩": "annoyed", "暫時不想說": "private" }[memory.today.mood];
@@ -390,12 +403,14 @@
             "<form id='jinzhu-chat-form' class='jinzhu-chat-form'><input id='jinzhu-chat-input' maxlength='64' autocomplete='off' placeholder='同金主講句嘢…' aria-label='同金主講句嘢'><button type='submit' aria-label='講畀金主聽'>講</button></form>";
     }
     function careHtml() {
-        return "<div class='panel-heading'><h3>金主提你</h3><button data-panel-close type='button' aria-label='收起提醒選項'>×</button></div>" +
+        return "<div class='panel-heading'><h3>金主提醒</h3><button data-panel-close type='button' aria-label='收起提醒'>×</button></div>" +
             "<div class='jinzhu-care-grid'>" +
             "<label class='toggle-row'><input id='rest-enabled' type='checkbox' " + (memory.settings.restEnabled ? "checked" : "") + ">休息提醒</label>" +
             "<select id='rest-minutes' aria-label='休息提醒間隔'>" + options([30,45,50,60], memory.settings.restMinutes) + "</select>" +
             "<label class='toggle-row'><input id='water-enabled' type='checkbox' " + (memory.settings.waterEnabled ? "checked" : "") + ">飲水提醒</label>" +
             "<select id='water-minutes' aria-label='飲水提醒間隔'>" + options([60,90,120], memory.settings.waterMinutes) + "</select>" +
+            "<label class='toggle-row'><input id='meal-enabled' type='checkbox' " + (memory.settings.mealEnabled ? "checked" : "") + ">吃饭提醒</label><span></span>" +
+            "<button type='button' data-pause-all>今日暂停</button>" +
             "</div>";
     }
     function settingsHtml() {
@@ -417,16 +432,14 @@
     }
     function showControl(name) {
         activeControl = name || "";
-        ["chat", "care"].forEach(function (key) {
+        ["care"].forEach(function (key) {
             var element = document.getElementById("jinzhu-" + key + "-box");
             if (element) element.hidden = key !== activeControl;
         });
         var petPanel = document.getElementById("jinzhu-panel");
         if (petPanel) {
-            petPanel.classList.toggle("jinzhu-chat-open", activeControl === "chat");
             petPanel.classList.toggle("jinzhu-care-open", activeControl === "care");
         }
-        if (activeControl === "chat") renderChatHistory();
     }
     window.JinzhuMenuAction = function (name) {
         showControl(name);
@@ -462,6 +475,15 @@
             else if (bridge && bridge.closeMenu) bridge.closeMenu();
             return;
         }
+        if (button && button.hasAttribute("data-pause-all")) {
+            memory.settings.restPausedDate = todayKey;
+            memory.settings.waterPausedDate = todayKey;
+            memory.settings.mealPausedDate = todayKey;
+            queueCatMessage("今日先唔提你，记得自己照顾好自己喔。");
+            saveMemory();
+            if (bridge && bridge.closeInteractions) bridge.closeInteractions();
+            return;
+        }
         if (button && button.hasAttribute("data-reset-jinzhu")) {
             if (button.getAttribute("data-confirm") !== "1") {
                 button.setAttribute("data-confirm", "1");
@@ -471,10 +493,6 @@
                 try { localStorage.removeItem((debugMode ? "messageClockDebug:" : "messageClock:") + "JinzhuMemory"); localStorage.removeItem(debugMode ? "messageClockJinzhuStateDebug" : "messageClockJinzhuState"); } catch (error) {}
                 location.reload();
             }
-            return;
-        }
-        if (button && button.getAttribute("data-chat-topic")) {
-            sendChat(button.getAttribute("data-chat-topic"));
             return;
         }
         if (button && button.dataset.mood) {
@@ -507,6 +525,7 @@
         }
         if (input && input.id === "rest-enabled") memory.settings.restEnabled = input.checked;
         if (input && input.id === "water-enabled") memory.settings.waterEnabled = input.checked;
+        if (input && input.id === "meal-enabled") memory.settings.mealEnabled = input.checked;
         if (input && input.id === "sound-enabled") memory.settings.soundEnabled = input.checked;
         if (select || input) saveMemory();
     }
@@ -689,6 +708,10 @@
         if (memory.work.active && active && new Date().getHours() < 5 && timestamp - memory.currentOpenAt > 45 * 60000) queueCatMessage("仲未瞓呀？");
         if (reminderDue("rest")) queueReminder("rest");
         if (!currentReminder && reminderQueue.indexOf("rest") < 0 && reminderDue("water")) queueReminder("water");
+        if (!currentReminder && reminderQueue.length === 0) {
+            var mealType = mealDue();
+            if (mealType) queueReminder(mealType);
+        }
         if (Math.floor(timestamp / 60000) !== lastSkyMinute) { lastSkyMinute = Math.floor(timestamp / 60000); applySky(); }
         flushQueues();
         saveMemory();
@@ -699,26 +722,14 @@
     function updateDebug() {
         if (!debugBox) return;
         var sky = skyState();
-        debugBox.textContent = "world " + sky.phase + " " + Math.round(sky.progress * 100) + "% · " +
-            "time " + Math.round(sky.minute) + " sunrise " + Math.round(sky.sunrise) + " sunset " + Math.round(sky.sunset) +
-            " · weather " + (weatherData ? weatherType(weatherData.code) : "fallback") + " · queue " + reminderQueue.join(",") +
-            " · storage " + (storage.available ? "local" : "memory-only");
+        debugBox.innerHTML = "<div>world " + sky.phase + " " + Math.round(sky.progress * 100) + "% · queue " + reminderQueue.join(",") + " · storage " + (storage.available ? "local" : "memory-only") + "</div>" +
+            "<div class='jinzhu-debug-actions'><button data-debug='water'>水</button><button data-debug='breakfast'>早</button><button data-debug='lunch'>午</button><button data-debug='dinner'>晚</button><button data-debug='rest'>休</button><button data-debug='rain'>雨</button><button data-debug='clear'>晴</button><button data-debug='sleep'>睡</button><button data-debug='eat'>食</button><button data-debug='move'>走</button><button data-debug='ipad'>iPad</button><button data-debug='clock-perch'>趴</button><button data-debug='clock-hook'>挂</button><button data-debug='clock-nap'>睡钟</button><button data-debug='clock-peek'>探</button><button data-debug='colon-sit'>:</button></div>";
     }
     function noteActivity() { lastActivityAt = Date.now(); }
 
     setupLayers();
     renderControls();
     window.JinzhuWorld = {
-        openChat: function () {
-            if (bridge && bridge.openInteractions) bridge.openInteractions("我听紧呀。");
-            else if (bridge && bridge.openMenu) bridge.openMenu("我听紧呀。");
-            showControl("chat");
-            if (bridge && bridge.refreshOverlay) bridge.refreshOverlay();
-            setTimeout(function () {
-                var input = document.getElementById("jinzhu-chat-input");
-                if (input) input.focus();
-            }, 80);
-        },
         openCare: function () {
             if (bridge && bridge.openInteractions) bridge.openInteractions("你想我几时提你呀？");
             else if (bridge && bridge.openMenu) bridge.openMenu("你想我几时提你呀？");
@@ -729,6 +740,30 @@
         closeOverlay: function () { showControl(""); },
         getInteractionReply: function (category) { return chooseReply(category); }
     };
+    if (debugMode) {
+        window.JinzhuDebug = window.JinzhuDebug || {};
+        window.JinzhuDebug.forceReminder = function (type) { queueReminder(type === "meal" ? "lunch" : type); };
+        window.JinzhuDebug.forceRain = function (kind) { handleWeather({ code: kind === "heavy" ? 82 : 61, temperature: 26, utcOffsetSeconds: 28800 }); };
+        window.JinzhuDebug.clearCooldowns = function () {
+            memory.reminder.restSnoozeUntil = 0; memory.reminder.waterSnoozeUntil = 0; memory.reminder.mealSnoozeUntil = 0;
+            memory.reminder.lastRestPrompt = 0; memory.reminder.lastWaterPrompt = 0; memory.reminder.lastMealPrompt = 0;
+            saveMemory();
+        };
+        if (debugBox) debugBox.addEventListener("click", function (event) {
+            var button = event.target && event.target.closest ? event.target.closest("button[data-debug]") : null;
+            if (!button) return;
+            var command = button.getAttribute("data-debug"), api = window.JinzhuDebug;
+            if (command === "water" || command === "breakfast" || command === "lunch" || command === "dinner" || command === "rest") api.forceReminder(command);
+            else if (command === "rain") api.forceRain("heavy");
+            else if (command === "clear") handleWeather({ code: 0, temperature: 26, utcOffsetSeconds: 28800 });
+            else if (command === "sleep") api.forceSleep();
+            else if (command === "eat") api.forceEat();
+            else if (command === "move") api.forceMove();
+            else if (command === "ipad") api.forceIPadFallback();
+            else if (api.forceClockState) api.forceClockState(command);
+            updateDebug();
+        });
+    }
     if (bridge && bridge.setOwnerMood) {
         var savedMoodKey = { "開心": "happy", "普通": "normal", "有點累": "tired", "有點煩": "annoyed", "暫時不想說": "private" }[memory.today.mood] || "normal";
         bridge.setOwnerMood(savedMoodKey);
@@ -791,8 +826,9 @@
     if (forcedWeather && debugWeatherCode(forcedWeather) !== undefined) handleWeather({ code: debugWeatherCode(forcedWeather), utcOffsetSeconds: 28800 });
     else if (weatherData) handleWeather(weatherData);
     else applySky();
-    if (debugMode && params.get("jinzhuReminder") === "both") { queueReminder("rest"); queueReminder("water"); }
-    else if (debugMode && params.get("jinzhuReminder")) queueReminder(params.get("jinzhuReminder"));
+    var requestedReminder = debugMode ? (params.get("forceReminder") || params.get("jinzhuReminder")) : null;
+    if (requestedReminder === "both") { queueReminder("rest"); queueReminder("water"); }
+    else if (requestedReminder) queueReminder(requestedReminder);
     if (debugMode && params.get("jinzhuMood")) {
         memory.today.mood = { happy: "開心", normal: "普通", tired: "有點累", annoyed: "有點煩", private: "暫時不想說" }[params.get("jinzhuMood")] || "普通";
     }

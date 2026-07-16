@@ -747,6 +747,84 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .msg-item { font-size: 16px; }
 }
 
+/* Final overrides: keep Chinese dialogue horizontal and controls compact. */
+.jinzhu-bubble {
+    min-width: 120px;
+    width: max-content;
+    max-width: 70vw;
+    max-width: min(260px, 70vw);
+    padding: 9px 13px;
+    border-radius: 18px;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+    text-align: left;
+}
+.jinzhu-bubble #jinzhu-bubble-text { writing-mode: horizontal-tb; white-space: normal; word-break: normal; }
+.jinzhu-home.bubble-above .jinzhu-bubble { left: 50%; right: auto; bottom: calc(100% - 10px); transform: translate(-50%, 6px) scale(.96); }
+.jinzhu-home.bubble-above .jinzhu-bubble.show { transform: translate(-50%, 0) scale(1); }
+.jinzhu-home.bubble-above .jinzhu-bubble::after { top: auto; right: auto; left: 50%; bottom: -10px; transform: translateX(-50%) rotate(45deg); }
+.jinzhu-panel.jinzhu-care-open { width: 276px; max-height: min(310px, 42vh); overflow-y: auto; }
+.jinzhu-care-grid [data-pause-all] { grid-column: 1 / -1; min-height: 44px; }
+.jinzhu-world-debug { pointer-events: auto; }
+.jinzhu-debug-actions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.jinzhu-debug-actions button { min-width: 30px; min-height: 28px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; background: rgba(255,255,255,.12); color: #fff; font: inherit; }
+@media (max-width: 600px) { .jinzhu-bubble { min-width: 120px; width: max-content; max-width: 70vw; } }
+
+/* 金主：轻量互动、旧 iPad 坐标回退与时钟锚点。 */
+.jinzhu-home.jinzhu-legacy-position .jinzhu-walker {
+    transform: none !important;
+    -webkit-transform: none !important;
+    transition: none !important;
+    -webkit-transition: none !important;
+}
+.jinzhu-bubble {
+    min-width: 120px;
+    max-width: 70vw;
+    max-width: min(260px, 70vw);
+    width: max-content;
+    padding: 9px 13px;
+    border-radius: 18px;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+    text-align: left;
+}
+.jinzhu-bubble #jinzhu-bubble-text {
+    writing-mode: horizontal-tb;
+    white-space: normal;
+    word-break: normal;
+}
+.jinzhu-home.bubble-above .jinzhu-bubble {
+    left: 50%;
+    right: auto;
+    bottom: calc(100% - 10px);
+    transform: translate(-50%, 6px) scale(.96);
+}
+.jinzhu-home.bubble-above .jinzhu-bubble.show { transform: translate(-50%, 0) scale(1); }
+.jinzhu-home.bubble-above .jinzhu-bubble::after {
+    top: auto;
+    right: auto;
+    left: 50%;
+    bottom: -10px;
+    transform: translateX(-50%) rotate(45deg);
+}
+.jinzhu-actions { width: 100%; }
+.jinzhu-actions button { flex: 1 1 0; min-height: 48px; }
+.jinzhu-panel.jinzhu-care-open { width: 276px; max-height: min(310px, 42vh); overflow-y: auto; }
+.jinzhu-care-grid { grid-template-columns: minmax(0, 1fr) 88px; }
+.jinzhu-care-grid .toggle-row { min-width: 0; font-size: 12px; }
+.jinzhu-care-grid [data-pause-all] { grid-column: 1 / -1; min-height: 44px; }
+.jinzhu-clock-anchor-debug { position: fixed; inset: 0; z-index: 19; pointer-events: none; }
+.jinzhu-clock-anchor-debug i { position: fixed; width: 8px; height: 8px; border: 1px solid #ffda63; border-radius: 50%; background: rgba(255,218,99,.35); }
+@media (max-width: 600px) {
+    .jinzhu-bubble { min-width: 120px; max-width: 70vw; width: max-content; }
+}
+
 /* 金主沉浸式互动：对白、动作和对话都保持轻量，不做控制台。 */
 .jinzhu-bubble {
     width: auto;
@@ -886,3 +964,16 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
         max-height: 35dvh;
     }
 }
+
+/* Last cascade layer for the pet bubble and debug controls. */
+.jinzhu-bubble { min-width: 120px; width: max-content; max-width: 70vw; max-width: min(260px, 70vw); padding: 9px 13px; border-radius: 18px; font-size: 13px; line-height: 1.45; white-space: normal; word-break: normal; overflow-wrap: break-word; text-align: left; }
+.jinzhu-bubble #jinzhu-bubble-text { writing-mode: horizontal-tb; white-space: normal; word-break: normal; }
+.jinzhu-home.bubble-above .jinzhu-bubble { left: 50%; right: auto; bottom: calc(100% - 10px); transform: translate(-50%, 6px) scale(.96); }
+.jinzhu-home.bubble-above .jinzhu-bubble.show { transform: translate(-50%, 0) scale(1); }
+.jinzhu-home.bubble-above .jinzhu-bubble::after { top: auto; right: auto; left: 50%; bottom: -10px; transform: translateX(-50%) rotate(45deg); }
+.jinzhu-panel.jinzhu-care-open { width: 276px; max-height: min(310px, 42vh); overflow-y: auto; }
+.jinzhu-care-grid [data-pause-all] { grid-column: 1 / -1; min-height: 44px; }
+.jinzhu-world-debug { pointer-events: auto; }
+.jinzhu-debug-actions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.jinzhu-debug-actions button { min-width: 30px; min-height: 28px; padding: 3px 5px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; background: rgba(255,255,255,.12); color: #fff; font: inherit; }
+@media (max-width: 600px) { .jinzhu-bubble { min-width: 120px; width: max-content; max-width: 70vw; } }
