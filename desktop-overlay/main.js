@@ -45,7 +45,7 @@ function walkOnce() {
 }
 function scheduleWalk() { clearTimeout(moveTimer); moveTimer = setTimeout(() => { walkOnce(); scheduleWalk(); }, 45000 + Math.random() * 135000); }
 function makeTray() {
-  const iconPath = path.join(__dirname, '..', 'assets', 'jinzhu', 'idle-1.png');
+  const iconPath = process.resourcesPath ? path.join(process.resourcesPath, 'assets', 'jinzhu', 'idle-1.png') : path.join(__dirname, '..', 'assets', 'jinzhu', 'idle-1.png');
   const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
   tray = new Tray(icon); tray.setToolTip('金主桌面宠物');
   tray.on('click', () => win && (win.isVisible() ? win.hide() : win.show()));

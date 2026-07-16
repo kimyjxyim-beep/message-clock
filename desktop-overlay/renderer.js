@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var root = '../assets/jinzhu/';
+  var root = (window.jinzhuOverlay && window.jinzhuOverlay.assetRoot) || '../assets/jinzhu/';
   var frames = { idle:['idle-1.png','idle-2.png'], walk:['walk-1.png','walk-2.png','walk-3.png','walk-4.png'], happy:['happy-1.png','happy-2.png'], sleep:['sleep-curl-1.png','sleep-curl-2.png','sleep-curl-3.png'], eat:['eat-1.png','eat-2.png','eat-3.png','eat-4.png','eat-5.png'] };
   var cat = document.getElementById('cat'), pet = document.getElementById('pet'), bubble = document.getElementById('bubble');
   var state = { mood:72, fullness:76, bond:40 }, frameTimer, bubbleTimer, dragging = false, lastPointer = {x:0,y:0};

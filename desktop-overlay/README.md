@@ -12,6 +12,14 @@ npm install
 npm start
 ```
 
+## 打包版
+
+维护者在仓库目录执行 `npm install` 后运行 `npm run dist`。生成的免安装版本位于 `desktop-overlay/dist/Jinzhu-Desktop-Pet-1.0.0-portable.exe`，普通用户直接双击即可运行，不需要再安装 Node.js、npm 或打开 PowerShell。便携版会把金主图片放进程序资源，并将位置、心情、饱腹和亲密度保存到 Windows 用户数据目录。
+
+首次运行若 Windows SmartScreen 显示“未知发布者”，是因为此版本未购买代码签名证书，并不代表程序必然有问题；可在确认文件来自本仓库后选择“更多信息 → 仍要运行”，或使用杀毒软件扫描后再运行。正式公开分发时建议签名证书。
+
+托盘菜单可显示/隐藏、暂停走动、切换置顶和退出；也可直接右键托盘图标选择“退出”。
+
 托盘菜单可以显示/隐藏、暂停走动、切换置顶和退出。拖动金主可放到任意桌面位置；位置、心情、饱腹和亲密度保存到 Electron 的用户数据目录。
 
 ## Lively Wallpaper
