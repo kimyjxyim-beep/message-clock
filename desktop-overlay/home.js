@@ -10,5 +10,11 @@
   function finish(e){if(!pointer)return;var dragged=pointer.dragged;try{bed.releasePointerCapture(pointer.id);}catch(_){}pointer=null;if(!dragged)action('bed');}
   bed.addEventListener('pointerup',finish);bed.addEventListener('pointercancel',finish);
   food.addEventListener('click',function(){action('food');});water.addEventListener('click',function(){action('water');});
+  window.jinzhuHome.onPetState(function(state){
+    var behavior=state&&state.behavior||'';
+    food.classList.toggle('in-use',behavior==='eat-at-bowl');
+    water.classList.toggle('in-use',behavior==='drink-at-bowl');
+    if(state&&state.foodAmount!=null)status.textContent=String(state.foodAmount);
+  });
   window.jinzhuHome.getBootstrap().then(function(info){var props=info.propUrls||{};setImage(bed,props['home-basket.png']);setImage(food,props['food-bowl.png']);setImage(water,props['water-bowl.png']);status.textContent='3';console.info('[Jinzhu home] props',props);}).catch(function(error){console.error('[Jinzhu home] bootstrap failed',error);});
 }());

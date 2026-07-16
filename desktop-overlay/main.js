@@ -29,7 +29,7 @@ const instanceLock = app.requestSingleInstanceLock();
 appendDiagnostic('instance-lock', { acquired: instanceLock, pid: process.pid, userData: app.getPath('userData'), userDataSetupError });
 if (!instanceLock) app.quit();
 
-function statePath() { return path.join(app.getPath('userData'), 'jinzhu-state.json'); }
+function statePath() { return path.join(app.getPath('userData'), 'jinzhuDesktopPetState.json'); }
 function diagnosticPath() { return path.join(app.getPath('userData'), 'jinzhu-diagnostics.log'); }
 function assetDirectory() {
   return app.isPackaged
@@ -64,14 +64,19 @@ function bootstrapInfo() {
   return { packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath(), assetDirectory: directory, idlePath, idleExists: fs.existsSync(idlePath), assetCount: files.length, assetUrls, propUrls, diagnosticPath: diagnosticPath() };
 }
 function loadState() {
-  try { state = Object.assign(state, JSON.parse(fs.readFileSync(statePath(), 'utf8'))); } catch (_) {}
+  try {
+    let file=statePath(), legacy=path.join(app.getPath('userData'),'jinzhu-state.json');
+    if(!fs.existsSync(file)&&fs.existsSync(legacy)) file=legacy;
+    const saved=JSON.parse(fs.readFileSync(file, 'utf8'));
+    state = Object.assign(state, saved.jinzhuDesktopPetState||saved);
+  } catch (_) {}
   const now=Date.now(), elapsed=Math.max(0,now-(Number(state.lastNeedsUpdate)||now));
   state.fullness=Math.max(0,Number(state.fullness||0)-elapsed/3600000*2);
   state.hydration=Math.max(0,Number(state.hydration||0)-elapsed/3600000*3);
   state.lastNeedsUpdate=now;
 }
 function saveState() {
-  try { fs.mkdirSync(path.dirname(statePath()), { recursive: true }); fs.writeFileSync(statePath(), JSON.stringify(state, null, 2)); } catch (_) {}
+  try { fs.mkdirSync(path.dirname(statePath()), { recursive: true }); fs.writeFileSync(statePath(), JSON.stringify({jinzhuDesktopPetState:state}, null, 2)); } catch (_) {}
 }
 function workAreaFor(x, y) {
   const point = Number.isFinite(Number(x)) && Number.isFinite(Number(y)) ? { x: Number(x), y: Number(y) } : screen.getPrimaryDisplay().workArea;
@@ -121,6 +126,7 @@ function explorationTarget(kind){
 function sendBehavior(name,duration,speech,extra){
   currentBehavior=name; state.currentBehavior=name; saveState();
   if(win&&!win.isDestroyed()) win.webContents.send('overlay:behavior',Object.assign({name,duration,speech:speech||''},extra||{}));
+  if(homeWin&&!homeWin.isDestroyed()) homeWin.webContents.send('home:pet-state',{behavior:name,foodAmount:state.foodAmount,fullness:state.fullness,hydration:state.hydration});
   appendDiagnostic('behavior',{name,duration,speech:speech||''});
 }
 function clearBehaviorSchedule(){clearTimeout(behaviorTimer);behaviorTimer=null;scheduleVersion++;}
@@ -135,7 +141,7 @@ function moveTo(target,moveState,duration,onArrive){
   const to=clamp(target.x,target.y), ms=Math.max(3000,Math.min(12000,duration||randomBetween(3000,12000)));
   movementTarget={x:Math.round(to.x),y:Math.round(to.y),type:target.type||'target',started:Date.now()};
   sendBehavior(moveState||'walk',ms,'',{direction:to.x<from[0]?'left':'right',targetType:target.type||'target'});
-  appendDiagnostic('movement-start',{state:moveState||'walk',current:{x:from[0],y:from[1]},target:movementTarget,workArea:to.workArea});
+  appendDiagnostic('movement-start',{state:moveState||'walk',direction:to.x<from[0]?'left':'right',current:{x:from[0],y:from[1]},target:movementTarget,workArea:to.workArea});
   const started=Date.now();
   const sample={x:from[0],y:from[1]};
   dragTimer=setInterval(()=>{
@@ -155,8 +161,8 @@ function moveTo(target,moveState,duration,onArrive){
 }
 function homeTarget(type){
   if(!homeWin||homeWin.isDestroyed())return explorationTarget('corner'); const b=homeWin.getBounds();
-  if(type==='food')return{x:b.x+145,y:b.y+45,type:'food-bowl'};
-  if(type==='water')return{x:b.x+205,y:b.y+45,type:'water-bowl'};
+  if(type==='food')return{x:b.x+125,y:b.y+45,type:'food-bowl'};
+  if(type==='water')return{x:b.x+187,y:b.y+45,type:'water-bowl'};
   return{x:b.x-55,y:b.y+10,type:'bed'};
 }
 function goToLifePlace(type,userInitiated){
@@ -164,6 +170,7 @@ function goToLifePlace(type,userInitiated){
   const speech=type==='bed'?sayFrom(['我返窝窝瞓阵先。','今日巡逻完毕，晚安啦。']):type==='food'?sayFrom(['饭饭时间到啦。','多谢主人，我开餐啦。']):'饮啖水先。';
   if(win&&!win.isDestroyed()) win.webContents.send('overlay:speech',speech);
   moveTo(target,moving,randomBetween(3500,8000),()=>{
+    if(win&&!win.isDestroyed()){win.setAlwaysOnTop(state.alwaysOnTop,'pop-up-menu');win.moveTop();}
     if(type==='bed'){
       sendBehavior('enter-bed',2600,''); scheduleTask(()=>{sendBehavior('sleep-in-bed',randomBetween(30000,90000),sayFrom(['窝窝好舒服，你都早点休息。','唔好嘈我，我发紧梦呀。']));scheduleBehavior(randomBetween(30000,90000));},2600);
     }else if(type==='food'){
@@ -178,9 +185,9 @@ function runNextBehavior(){
   if(state.fullness<32){goToLifePlace('food');return;} if(state.hydration<30){goToLifePlace('water');return;}
   const hour=new Date().getHours(); if((hour>=23||hour<7)&&Math.random()<.55){goToLifePlace('bed');return;}
   const roll=Math.random()*100;
-  if(roll<25){const name=Math.random()<.35?'blink':Math.random()<.55?'look':'idle';sendBehavior(name,randomBetween(4000,12000));scheduleBehavior(randomBetween(5000,18000));return;}
-  if(roll<50){const run=Math.random()<.3;moveTo(explorationTarget(),run?'run':'walk',run?randomBetween(3000,6000):randomBetween(5000,12000));return;}
-  if(roll<65){goToLifePlace('bed');return;}
+  if(roll<18){const name=Math.random()<.35?'blink':Math.random()<.55?'look':'idle';sendBehavior(name,randomBetween(3000,9000));scheduleBehavior(randomBetween(5000,14000));return;}
+  if(roll<53){const run=Math.random()<.4;moveTo(explorationTarget(),run?'run':'walk',run?randomBetween(3000,6000):randomBetween(4500,10000));return;}
+  if(roll<66){goToLifePlace('bed');return;}
   if(roll<75){sendBehavior('groom',randomBetween(6000,15000),Math.random()<.25?'整理下毛先。':'');scheduleBehavior(randomBetween(8000,25000));return;}
   if(roll<85){const name=Math.random()<.55?'roll':'play';sendBehavior(name,randomBetween(5000,10000));scheduleBehavior(randomBetween(8000,22000));return;}
   if(roll<95){moveTo(explorationTarget(Math.random()<.55?'cursor':'corner'),'investigate',randomBetween(3500,8000),()=>{sendBehavior('look',randomBetween(4000,8000),'我过嚟睇下你。');scheduleBehavior(randomBetween(8000,25000));});return;}
@@ -240,7 +247,7 @@ function makeTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '显示 / 隐藏金主', click: () => { if(!win)return; const visible=win.isVisible(); visible?win.hide():win.show(); if(homeWin)(visible?homeWin.hide():homeWin.show()); } },
     { label: '暂停走动', type: 'checkbox', checked: state.paused, click: (i) => { state.paused = i.checked; saveState(); clearBehaviorSchedule(); clearInterval(walkAnimation); if (!state.paused) scheduleBehavior(1500); } },
-    { label: '置顶显示', type: 'checkbox', checked: state.alwaysOnTop, click: (i) => { state.alwaysOnTop = i.checked; win.setAlwaysOnTop(i.checked, 'floating'); if(homeWin)homeWin.setAlwaysOnTop(i.checked,'floating'); saveState(); } },
+    { label: '置顶显示', type: 'checkbox', checked: state.alwaysOnTop, click: (i) => { state.alwaysOnTop = i.checked; win.setAlwaysOnTop(i.checked, 'pop-up-menu'); if(homeWin)homeWin.setAlwaysOnTop(i.checked,'floating'); saveState(); } },
     { type: 'separator' },
     { label: '打开诊断日志', click: () => shell.openPath(diagnosticPath()) },
     { type: 'separator' }, { label: '退出', click: quitApplication }
@@ -248,7 +255,7 @@ function makeTray() {
 }
 function setHomePosition(x,y,persist=true){
   if(!homeWin)return; const a=screen.getDisplayNearestPoint({x:Number(x)||0,y:Number(y)||0}).workArea;
-  const safeX=Math.max(a.x,Math.min(a.x+a.width-HOME_SIZE.width,Number(x)||a.x));
+  const safeX=Math.max(a.x+55,Math.min(a.x+a.width-HOME_SIZE.width-110,Number(x)||a.x+55));
   const safeY=Math.max(a.y,Math.min(a.y+a.height-HOME_SIZE.height,Number(y)||a.y));
   homeWin.setBounds({x:Math.round(safeX),y:Math.round(safeY),width:HOME_SIZE.width,height:HOME_SIZE.height},false);
   const b=homeWin.getBounds();state.homeX=b.x;state.homeY=b.y;if(persist)saveState();
@@ -257,6 +264,7 @@ function createHomeWindow(){
   const preloadPath=path.join(__dirname,'home-preload.js'),rendererPath=path.join(__dirname,'home.html');
   homeWin=new BrowserWindow({width:HOME_SIZE.width,height:HOME_SIZE.height,frame:false,transparent:true,resizable:false,maximizable:false,fullscreenable:false,movable:true,hasShadow:false,skipTaskbar:true,alwaysOnTop:state.alwaysOnTop,show:false,backgroundColor:'#00000000',webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
   homeWin.setMenuBarVisibility(false);homeWin.loadFile(rendererPath).catch((error)=>appendDiagnostic('home-load-error',{error:error.message}));
+  homeWin.setAlwaysOnTop(state.alwaysOnTop,'floating');
   homeWin.once('ready-to-show',()=>{const a=screen.getPrimaryDisplay().workArea;if(state.homeX==null||state.homeY==null){state.homeX=a.x+a.width-HOME_SIZE.width-20;state.homeY=a.y+a.height-HOME_SIZE.height-20;}setHomePosition(state.homeX,state.homeY,false);homeWin.showInactive();appendDiagnostic('home-ready',{bounds:homeWin.getBounds(),props:bootstrapInfo().propUrls});});
   homeWin.on('move',()=>{const b=homeWin.getBounds();state.homeX=b.x;state.homeY=b.y;saveState();});
 }
@@ -267,6 +275,7 @@ function createWindow() {
     appendDiagnostic('window-create', { preloadPath, preloadExists: fs.existsSync(preloadPath), rendererPath, rendererExists: fs.existsSync(rendererPath) });
     win = new BrowserWindow({ width: SIZE.width, height: SIZE.height, frame: false, transparent: true, resizable: false, maximizable: false, fullscreenable: false, movable: true, hasShadow: false, skipTaskbar: true, alwaysOnTop: state.alwaysOnTop, show: false, backgroundColor: '#00000000', webPreferences: { preload: preloadPath, contextIsolation: true, nodeIntegration: false, sandbox: false } });
     win.setMenuBarVisibility(false);
+    win.setAlwaysOnTop(state.alwaysOnTop,'pop-up-menu');
     win.loadFile(rendererPath).catch((error) => appendDiagnostic('renderer-load-error', { error: error.message, stack: error.stack }));
     win.webContents.on('did-fail-load', (_, code, description, url) => appendDiagnostic('renderer-did-fail-load', { code, description, url }));
     win.webContents.on('render-process-gone', (_, details) => appendDiagnostic('renderer-process-gone', details));
@@ -297,6 +306,12 @@ app.whenReady().then(() => {
   appendDiagnostic('startup', { packaged: info.packaged, resourcesPath: info.resourcesPath, appPath: info.appPath, idlePath: info.idlePath, idleExists: info.idleExists, assetCount: info.assetCount, hardwareAcceleration: false, singleInstance: true });
   loadState(); createHomeWindow(); createWindow(); makeTray();
   if (process.argv.includes('--jinzhu-test-tray-exit')) setTimeout(quitApplication, 3000);
+  if(process.argv.includes('--jinzhu-test-life')){
+    setTimeout(()=>goToLifePlace('food',true),3000);
+    setTimeout(()=>goToLifePlace('water',true),25000);
+    setTimeout(()=>goToLifePlace('bed',true),44000);
+    setTimeout(quitApplication,59000);
+  }
 }).catch((error) => appendDiagnostic('ready-error', { error: error.message, stack: error.stack }));
 app.on('second-instance', () => { appendDiagnostic('second-instance-blocked', {}); if (win) { if (!win.isVisible()) win.show(); win.focus(); } });
 app.on('child-process-gone', (_, details) => appendDiagnostic('child-process-gone', details));
@@ -312,7 +327,7 @@ ipcMain.on('overlay:drag-delta', (_, delta) => { if (!win || !delta) return; con
 ipcMain.on('overlay:dragging', (_, active) => { if (active) { clearBehaviorSchedule(); clearInterval(dragTimer); clearInterval(walkAnimation); movementTarget=null; } else scheduleBehavior(3500); });
 ipcMain.on('overlay:interaction', (_, action) => reactToInteraction(action));
 ipcMain.on('overlay:toggle-pause', () => { state.paused = !state.paused; saveState(); clearBehaviorSchedule(); clearInterval(walkAnimation); if (!state.paused) scheduleBehavior(1500); });
-ipcMain.on('overlay:toggle-top', () => { state.alwaysOnTop = !state.alwaysOnTop; if (win) win.setAlwaysOnTop(state.alwaysOnTop, 'floating'); saveState(); });
+ipcMain.on('overlay:toggle-top', () => { state.alwaysOnTop = !state.alwaysOnTop; if (win) win.setAlwaysOnTop(state.alwaysOnTop, 'pop-up-menu'); if(homeWin)homeWin.setAlwaysOnTop(state.alwaysOnTop,'floating'); saveState(); });
 ipcMain.on('overlay:hide', () => win && win.hide());
 ipcMain.handle('home:get-bootstrap', () => bootstrapInfo());
 ipcMain.on('home:action', (_, type) => { if (type === 'bed') goToLifePlace('bed', true); else if (type === 'food') { state.foodAmount = Math.max(1, Number(state.foodAmount || 0)); goToLifePlace('food', true); } else if (type === 'water') goToLifePlace('water', true); });
