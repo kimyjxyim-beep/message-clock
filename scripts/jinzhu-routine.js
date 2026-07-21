@@ -670,23 +670,31 @@
     }
 
     function startClockScratch(force) {
-        if (clockScratchActive || clockAnchorActive || climbing || perched || reduceMotion.matches) return false;
+        if (clockScratchActive || reduceMotion.matches) return false;
         if (!force && (Date.now() < Number(state.nextScratchAllowed || 0) || reminderActive || panel.hidden === false)) return false;
         if (feedingPending || currentStatus === "eating" || currentStatus === "sleeping" || currentStatus === "happy" || currentStatus === "rain" || currentStatus === "fan") return false;
         var point = clockScratchPoint();
         if (!point) return false;
         clearScheduler();
+        /* An hour can arrive while Jinzhu is already perched on the clock.
+           The scratch is the one clock moment that is allowed to take over
+           that passive pose, otherwise the visible easter egg is skipped. */
+        clearTimeout(clockAnchorTimer);
+        clockAnchorTimer = null;
+        clockAnchorActive = "";
+        climbing = false;
+        perched = false;
         clockScratchActive = true;
-        state.nextScratchAllowed = Date.now() + 3 * 60 * 60000;
+        state.nextScratchAllowed = Date.now() + 50 * 60000;
         home.classList.add("on-clock");
         home.style.setProperty("--jinzhu-perch-scale", ".64");
         home.style.setProperty("--jinzhu-facing", "1");
         setStatus("walking");
         setPosition(point, scaledDuration(1000), false);
-        schedule(1120, function () {
+        schedule(980, function () {
             if (!clockScratchActive) return;
             setStatus("clock-scratching");
-            schedule(6500, finishClockScratch, true);
+            schedule(9000, finishClockScratch, true);
         }, true);
         saveState();
         return true;
@@ -1415,9 +1423,9 @@
         var hourKey = String(detail.hour || "") + ":" + String(minute);
         /* A sleepy, eating, or busy cat is never pulled into this gag.  When
            awake, she only tries it occasionally just before an hour changes. */
-        if (minute === 59 && second === 56 && lastScratchWindow !== hourKey) {
+        if (minute === 59 && second === 50 && lastScratchWindow !== hourKey) {
             lastScratchWindow = hourKey;
-            if (Math.random() < .42) startClockScratch(false);
+            startClockScratch(false);
         }
     });
     window.addEventListener("jinzhu:clock-flip", function (event) { pullClockFlip(event && event.detail); });
