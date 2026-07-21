@@ -93,7 +93,8 @@ function windowExtent() {
   return { width: SIZE.width, height: SIZE.height };
 }
 function clamp(x, y) {
-  const a = workAreaFor(x, y);
+  const base = workAreaFor(x, y);
+  const a = (homeWin&&!homeWin.isDestroyed()) ? petWorld().world : base;
   const extent = windowExtent();
   const requestedX = Number.isFinite(Number(x)) ? Number(x) : a.x;
   const requestedY = Number.isFinite(Number(y)) ? Number(y) : a.y;
@@ -115,15 +116,31 @@ function displayForExploration(){
   if(displays.length>1&&Math.random()<.08) return displays[Math.floor(Math.random()*displays.length)];
   return Math.random()<.18?primary:current;
 }
+/* Single Pet World coordinate model.  The desktop pet never derives targets
+   from the webpage or from document geometry; every entity is anchored to the
+   independent home scene window and expressed in screen/world coordinates. */
+function petWorld(){
+  const b=homeWin&&!homeWin.isDestroyed()?homeWin.getBounds():null;
+  const display=screen.getDisplayNearestPoint({x:b?b.x:state.x,y:b?b.y:state.y}).workArea;
+  const home=b?{x:b.x,y:b.y,width:b.width,height:b.height}:null;
+  const food=home?{x:home.x+home.width-140,y:home.y+home.height-38}:{x:display.x+120,y:display.y+display.height-80};
+  const water=home?{x:home.x+home.width-28,y:home.y+home.height-38}:{x:display.x+220,y:display.y+display.height-80};
+  const world={x:Math.max(display.x,home?home.x-220:display.x),y:Math.max(display.y,home?home.y-45:display.y),width:Math.min(display.width,home?home.width+440:display.width),height:Math.min(display.height,home?home.height+300:display.height)};
+  world.width=Math.max(280,Math.min(world.width,display.x+display.width-world.x));
+  world.height=Math.max(220,Math.min(world.height,display.y+display.height-world.y));
+  return {display,world,home,food,water,pet:{x:state.x,y:state.y},target:movementTarget};
+}
 function explorationTarget(kind){
-  const a=displayForExploration().workArea, extent=windowExtent(), maxX=a.x+a.width-extent.width, maxY=a.y+a.height-extent.height, cursor=screen.getCursorScreenPoint();
+  const model=petWorld(), a=model.world, extent=windowExtent(), maxX=a.x+a.width-extent.width, maxY=a.y+a.height-extent.height, cursor=screen.getCursorScreenPoint();
   const type=kind||['random','corner','edge','taskbar','clock','cursor'][Math.floor(Math.random()*6)];
   if(type==='corner'){ const corners=[[a.x,a.y],[maxX,a.y],[a.x,maxY],[maxX,maxY]]; const p=corners[Math.floor(Math.random()*corners.length)]; return {x:p[0],y:p[1],type}; }
   if(type==='edge'){ const side=Math.floor(Math.random()*4); return {x:side===0?a.x:side===1?maxX:randomBetween(a.x,maxX),y:side===2?a.y:side===3?maxY:randomBetween(a.y,maxY),type}; }
   if(type==='taskbar') return {x:randomBetween(a.x,maxX),y:maxY,type};
   if(type==='clock') return {x:randomBetween(a.x+a.width*.2,Math.max(a.x+a.width*.2,maxX-a.width*.15)),y:randomBetween(a.y,a.y+a.height*.32),type};
   if(type==='cursor') return {x:cursor.x+(Math.random()<.5?-220:80),y:cursor.y-110,type};
-  return {x:randomBetween(a.x,maxX),y:randomBetween(a.y,maxY),type:'random'};
+  const result={x:randomBetween(a.x,maxX),y:randomBetween(a.y,maxY),type:'random'};
+  appendDiagnostic('pet-world-target',{world:model,target:result});
+  return result;
 }
 function sendBehavior(name,duration,speech,extra){
   currentBehavior=name; state.currentBehavior=name; saveState();
@@ -162,13 +179,12 @@ function moveTo(target,moveState,duration,onArrive){
   walkAnimation=setInterval(()=>{ if(!win||state.paused){clearInterval(walkAnimation);clearInterval(dragTimer);movementTarget=null;return;} const t=Math.min(1,(Date.now()-started)/ms), eased=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; setPosition(from[0]+(to.x-from[0])*eased,from[1]+(to.y-from[1])*eased,false); if(t>=1){clearInterval(walkAnimation);clearInterval(dragTimer);movementTarget=null;saveState();appendDiagnostic('movement-arrived',{state:moveState||'walk',current:{x:state.x,y:state.y},target:{x:to.x,y:to.y}}); if(onArrive)onArrive(); else{const rest=Math.random();const next=rest<.45?'idle':rest<.7?'look':rest<.88?'groom':rest<.95?'sleep':'idle';sendBehavior(next,randomBetween(5000,18000));scheduleBehavior(randomBetween(5000,30000));}} },50);
 }
 function homeTarget(type){
-  if(!homeWin||homeWin.isDestroyed())return explorationTarget('corner'); const b=homeWin.getBounds();
-  if(type==='food')return{x:b.x-8,y:b.y-35,type:'food-bowl'};
-  // The water bowl is on the right side of the home scene.  Place the pet
-  // window to its left so the muzzle reaches the bowl edge without the body
-  // sitting on top of it (the renderer keeps the bowl as a separate layer).
-  if(type==='water')return{x:b.x+95,y:b.y-35,type:'water-bowl'};
-  return{x:b.x+23,y:b.y-35,type:'food-bowl'};
+  const model=petWorld();
+  const target=type==='food'?{x:model.food.x-150,y:model.food.y-170,type:'food-bowl'}:
+    type==='water'?{x:model.water.x-150,y:model.water.y-170,type:'water-bowl'}:
+    {x:model.home?model.home.x+20:model.world.x,y:model.home?model.home.y-170:model.world.y,type:'home'};
+  appendDiagnostic('pet-world-target',{world:model,target,reason:type});
+  return target;
 }
 function goToLifePlace(type,userInitiated){
   const target=homeTarget(type), moving=type==='food'?'go-to-food':'go-to-water';
