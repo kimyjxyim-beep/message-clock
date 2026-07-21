@@ -26,6 +26,7 @@
     var panel = document.getElementById("jinzhu-panel");
     var clock = document.querySelector(".clock");
     var clockInvite = document.getElementById("jinzhu-clock-invite");
+    var clockInviteTimer = null;
     if (!home || !walker || !cat || !catImage || !bubble || !panel) return;
 
     var params = queryParameters(location.search);
@@ -655,6 +656,12 @@
     }
 
     function inviteClockInteraction(target) {
+        if (clock) {
+            clock.classList.remove("jinzhu-clock-called");
+            clearTimeout(clockInviteTimer);
+            setTimeout(function () { if (clock) clock.classList.add("jinzhu-clock-called"); }, 0);
+            clockInviteTimer = setTimeout(function () { if (clock) clock.classList.remove("jinzhu-clock-called"); }, 900);
+        }
         if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan") {
             say("等我忙完先上去。");
             return;
@@ -1032,6 +1039,13 @@
             if (!target.closest("#jinzhu-clock-invite, #hour-card, #minute-card, .colon")) return;
             event.preventDefault();
             inviteClockInteraction(target);
+        });
+    }
+    if (clockInvite) {
+        clockInvite.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            inviteClockInteraction(event.currentTarget);
         });
     }
 
