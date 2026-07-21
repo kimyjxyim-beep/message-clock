@@ -81,12 +81,13 @@
     var spriteBase = "assets/jinzhu/";
     var behaviorClasses = [
         "sleeping", "sleepy", "idle", "look-around", "grooming",
-        "walking", "playing", "eating", "happy", "rain", "heat", "fan",
+        "walking", "tap-running", "playing", "eating", "happy", "rain", "heat", "fan",
         "climbing", "perched", "climbing-down", "clock-perch", "clock-hook", "clock-nap", "clock-peek", "colon-sit"
     ];
     var sprites = {
         idle: ["idle-1.png", "idle-2.png", "idle-3.png", "idle-5.png", "idle-2.png"],
         walking: ["walk-1.png", "walk-2.png", "walk-3.png", "walk-4.png", "walk-5.png", "walk-6.png", "walk-7.png"],
+        "tap-running": ["walk-1.png", "walk-3.png", "walk-5.png", "walk-7.png", "walk-4.png", "walk-2.png"],
         "look-around": ["look-1.png", "look-2.png", "look-3.png", "look-4.png", "look-5.png", "look-3.png"],
         grooming: ["groom-1.png", "groom-2.png", "groom-3.png", "groom-4.png", "groom-1.png"],
         playing: ["roll-1.png", "roll-2.png", "roll-3.png", "roll-4.png", "roll-5.png", "roll-6.png"],
@@ -107,7 +108,7 @@
         "colon-sit": ["idle-1.png", "idle-2.png"]
     };
     var spriteSpeeds = {
-        idle: 1100, walking: 145, "look-around": 700, grooming: 760,
+        idle: 1100, walking: 145, "tap-running": 92, "look-around": 700, grooming: 760,
         playing: 420, happy: 330, eating: 620, sleepy: 1800, sleeping: 3200, rain: 1100, fan: 620,
         climbing: 620, perched: 2200, "climbing-down": 680,
         "clock-perch": 2200, "clock-hook": 750, "clock-nap": 3200, "clock-peek": 2000, "colon-sit": 1800
@@ -255,7 +256,7 @@
         var index = 0;
         catImage.src = spriteBase + frames[0];
         if (document.hidden || reduceMotion.matches || frames.length < 2) return;
-        if (simpleMotion && status !== "walking" && status !== "climbing" && status !== "climbing-down" && status !== "eating") return;
+        if (simpleMotion && status !== "walking" && status !== "tap-running" && status !== "climbing" && status !== "climbing-down" && status !== "eating") return;
         if (status === "eating") {
             var eatingStep = Math.max(900, (pendingEatingDuration - 2000) / 4);
             spriteTimer = setInterval(function () {
@@ -508,6 +509,23 @@
             candidate = points[names[(names.indexOf(debugPoint) + 5 + Math.floor(Math.random() * names.length)) % names.length]];
         }
         return clampPosition(candidate);
+    }
+
+    function tapRunDestination() {
+        var b = getViewportBounds();
+        var points = roamingPoints();
+        var names = Object.keys(points).filter(function (name) { return points[name]; });
+        var minimumDistance = Math.max(140, Math.min(b.maxX - b.minX, b.maxY - b.minY) * .38);
+        var choices = names.map(function (name) { return points[name]; }).filter(function (point) {
+            return Math.abs(point.x - currentPosition.x) + Math.abs(point.y - currentPosition.y) >= minimumDistance;
+        });
+        if (!choices.length) {
+            choices = [
+                { x: b.minX, y: b.minY }, { x: b.maxX, y: b.minY },
+                { x: b.minX, y: b.maxY }, { x: b.maxX, y: b.maxY }
+            ];
+        }
+        return clampPosition(choices[Math.floor(Math.random() * choices.length)]);
     }
 
     function clockClimbGeometry() {
@@ -1090,12 +1108,15 @@
 
     function startImmersiveRun() {
         clearScheduler();
-        if (!debugNoClimb && Math.random() < .16 && startClockAnchor(["clock-perch", "clock-hook", "clock-peek", "colon-sit"][Math.floor(Math.random() * 4)], false)) return;
+        tapAwayPending = true;
+        clearTimeout(tapAwayTimer);
+        tapAwayTimer = setTimeout(function () { tapAwayPending = false; }, 12000);
+        if (!debugNoClimb && Math.random() < .35 && startClockAnchor(["clock-perch", "clock-hook", "clock-peek", "colon-sit"][Math.floor(Math.random() * 4)], true)) return;
         var replies = ["我行过嚟睇下你。", "我去第二度坐阵。", "借借，我巡下屋企。", "唔好成日撳我呀。"];
-        var duration = scaledDuration(randomBetween(2, 5) * 1000);
-        setStatus("walking");
+        var duration = scaledDuration(randomBetween(900, 1700));
+        setStatus("tap-running");
         say(replies[Math.floor(Math.random() * replies.length)]);
-        setPosition(randomRoamingPosition(), duration);
+        setPosition(tapRunDestination(), duration);
         schedule(duration + 120, function () {
             var arrivals = ["idle", "look-around", "grooming"];
             var arrival = arrivals[Math.floor(Math.random() * arrivals.length)];
@@ -1180,7 +1201,11 @@
             closeInteractions();
             return;
         }
-        var roll = debugClickOutcome === "talk" ? .20 : debugClickOutcome === "run" ? .70 : debugClickOutcome === "actions" ? .92 : Math.random();
+        var roll = .70;
+        if (tapAwayPending) {
+            openInteractions();
+            return;
+        }
         if (roll < .60) {
             var lines = state.fullness < 25 ? ["个饭碗好似空咗喔。", "有少少肚饿呀。"] :
                 ["我喺度陪你呀。", "今日有冇乖乖饮水？", "我行过嚟睇下你。", "你做你嘅，我坐阵先。", "做咩又搵我呀？"];
