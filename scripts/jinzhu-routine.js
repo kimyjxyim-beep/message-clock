@@ -24,9 +24,6 @@
     var bubbleText = document.getElementById("jinzhu-bubble-text");
     var bubbleMenu = null;
     var panel = document.getElementById("jinzhu-panel");
-    var clock = document.querySelector(".clock");
-    var clockInvite = document.getElementById("jinzhu-clock-invite");
-    var clockInviteTimer = null;
     if (!home || !walker || !cat || !catImage || !bubble || !panel) return;
 
     var params = queryParameters(location.search);
@@ -585,11 +582,13 @@
             for (var c = 0; c < points.length; c++) if (points[c].name === "colon") target = points[c];
         }
         if (!target || !target.rect) return pointOnTop(".clock");
-        var rect = target.rect, point;
-        if (kind === "clock-hook") point = { x: rect.left + rect.width * .48 - w * .5, y: rect.top + rect.height * .19 - h * .28 };
-        else if (kind === "clock-peek") point = { x: rect.right - w * .18, y: rect.top + rect.height * .17 - h * .14 };
-        else if (kind === "colon-sit") point = { x: rect.left + rect.width * .5 - w * .5, y: rect.top + rect.height * .45 - h * .25 };
-        else point = { x: rect.left + rect.width * .5 - w * .5, y: rect.top - h * .63 };
+        var card = target.name.indexOf("hour-") === 0 ? document.getElementById("hour-card") : document.getElementById("minute-card");
+        var cardRect = card ? card.getBoundingClientRect() : target.rect;
+        var rect = cardRect && cardRect.width ? cardRect : target.rect, point;
+        if (kind === "clock-hook") point = { x: rect.left - w * .38, y: rect.top + rect.height * .25 - h * .16 };
+        else if (kind === "clock-peek") point = { x: rect.right - w * .55, y: rect.top - h * .50 };
+        else if (kind === "colon-sit") point = { x: target.rect.left + target.rect.width * .5 - w * .5, y: rect.top - h * .65 };
+        else point = { x: rect.left + rect.width * .5 - w * .5, y: rect.top - h * .78 };
         return { point: clampPosition(point), target: target };
     }
 
@@ -645,35 +644,6 @@
         updateClockAnchorOverlay();
         saveState();
         return true;
-    }
-
-    function clockAnchorFromTarget(target) {
-        if (target && target.closest && target.closest("#hour-card")) return "clock-peek";
-        if (target && target.closest && target.closest("#minute-card")) return "clock-hook";
-        if (target && target.closest && target.closest(".colon")) return "colon-sit";
-        var kinds = routinePeriod() === "night" ? ["clock-nap", "clock-perch", "clock-peek"] : ["clock-perch", "clock-hook", "clock-peek", "colon-sit"];
-        return kinds[Math.floor(Math.random() * kinds.length)];
-    }
-
-    function inviteClockInteraction(target) {
-        if (clock) {
-            clock.classList.remove("jinzhu-clock-called");
-            clearTimeout(clockInviteTimer);
-            setTimeout(function () { if (clock) clock.classList.add("jinzhu-clock-called"); }, 0);
-            clockInviteTimer = setTimeout(function () { if (clock) clock.classList.remove("jinzhu-clock-called"); }, 900);
-        }
-        if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan") {
-            say("等我忙完先上去。");
-            return;
-        }
-        if (reduceMotion.matches) {
-            say("我喺度望住时间呀。");
-            return;
-        }
-        closeInteractions(true);
-        tapAwayPending = false;
-        clearTimeout(tapAwayTimer);
-        if (!startClockAnchor(clockAnchorFromTarget(target), true)) say("呢度有啲高，等阵先。");
     }
 
     function finishClockClimb() {
@@ -1090,23 +1060,6 @@
         saveState();
     });
 
-    }
-
-    if (clock) {
-        clock.addEventListener("click", function (event) {
-            var target = event.target;
-            if (!target || !target.closest) return;
-            if (!target.closest("#hour-card, #minute-card, .colon")) return;
-            event.preventDefault();
-            inviteClockInteraction(target);
-        });
-    }
-    if (clockInvite) {
-        clockInvite.addEventListener("click", function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-            inviteClockInteraction(event.currentTarget);
-        });
     }
 
     function markImmersiveInteraction() {

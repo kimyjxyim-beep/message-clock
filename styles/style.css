@@ -63,43 +63,6 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     width: 100%;
     position: relative;
 }
-.jinzhu-clock-invite {
-    position: absolute;
-    top: -15px;
-    right: -15px;
-    z-index: 9;
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    border: 1px solid rgba(255,255,255,.2);
-    border-radius: 50%;
-    background: rgba(255,255,255,.12);
-    color: #fff;
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
-    opacity: .62;
-    transition: opacity .2s ease, transform .2s ease, background .2s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-.jinzhu-clock-invite:hover,
-.jinzhu-clock-invite:focus-visible,
-.jinzhu-clock-invite:active {
-    opacity: 1;
-    background: rgba(255,255,255,.23);
-    transform: scale(1.08);
-}
-.clock.jinzhu-clock-called .jinzhu-clock-invite {
-    opacity: 1;
-    background: rgba(255,255,255,.35);
-    animation: jinzhu-clock-call .72s ease-in-out 1;
-}
-@keyframes jinzhu-clock-call {
-    0%, 100% { transform: scale(1); }
-    35% { transform: scale(1.3) rotate(-12deg); }
-    68% { transform: scale(1.12) rotate(10deg); }
-}
-
 .clock > div {
     margin: 0 10px;
 }
