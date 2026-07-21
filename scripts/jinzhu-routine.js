@@ -201,6 +201,22 @@
         return debugMode ? Math.max(250, milliseconds / (60 * motionSpeed)) : milliseconds;
     }
 
+    function compactViewport() {
+        return viewportSize().width <= 600;
+    }
+
+    function spriteDelay(status) {
+        var delay = spriteSpeeds[status] || 800;
+        if (!compactViewport()) return delay;
+        /* Mobile Safari can swap several PNG frames in the same paint cycle.
+           Keep the movement legible instead of treating the cat like a GIF. */
+        if (status === "tap-running") return 135;
+        if (status === "walking") return 220;
+        if (status === "clock-scratching") return 520;
+        if (status === "clock-flip-pull") return 185;
+        return Math.max(delay, 980);
+    }
+
     function currentDate() {
         var date = new Date();
         if (debugMode && isFinite(debugHour) && debugHour >= 0 && debugHour < 24) {
@@ -281,7 +297,7 @@
         spriteTimer = setInterval(function () {
             index = (index + 1) % frames.length;
             catImage.src = spriteBase + frames[index];
-        }, spriteSpeeds[status] || 800);
+        }, spriteDelay(status));
     }
 
     function setStatus(status) {

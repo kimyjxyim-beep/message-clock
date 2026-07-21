@@ -72,8 +72,13 @@ function updateClock() {
     var hourFlipped = flipUpdate("hour", hourStr);
     var minuteFlipped = flipUpdate("minute", minuteStr);
     try {
+        /* The tick is only for the once-an-hour scratch cue.  A layout
+           recalculation on every second cancels mobile CSS transitions and
+           made Jinzhu visibly blink back to her target position. */
         window.dispatchEvent(new CustomEvent("jinzhu:clock-tick", { detail: { hour: hourStr, minute: minuteStr, second: second } }));
-        window.dispatchEvent(new CustomEvent("jinzhu:clock-change", { detail: { hour: hourStr, minute: minuteStr, second: second } }));
+        if (hourFlipped || minuteFlipped) {
+            window.dispatchEvent(new CustomEvent("jinzhu:clock-change", { detail: { hour: hourStr, minute: minuteStr, second: second } }));
+        }
         if (hourFlipped) window.dispatchEvent(new CustomEvent("jinzhu:clock-flip", { detail: { card: "hour", hour: hourStr, minute: minuteStr } }));
         if (minuteFlipped) window.dispatchEvent(new CustomEvent("jinzhu:clock-flip", { detail: { card: "minute", hour: hourStr, minute: minuteStr } }));
     } catch (e) {}
