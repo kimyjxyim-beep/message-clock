@@ -1032,23 +1032,6 @@
         else startClickRun();
     });
 
-    if (clock) {
-        clock.addEventListener("click", function (event) {
-            var target = event.target;
-            if (!target || !target.closest) return;
-            if (!target.closest("#jinzhu-clock-invite, #hour-card, #minute-card, .colon")) return;
-            event.preventDefault();
-            inviteClockInteraction(target);
-        });
-    }
-    if (clockInvite) {
-        clockInvite.addEventListener("click", function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-            inviteClockInteraction(event.currentTarget);
-        });
-    }
-
     if (bubbleMenu) bubbleMenu.addEventListener("click", function (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -1107,6 +1090,23 @@
         saveState();
     });
 
+    }
+
+    if (clock) {
+        clock.addEventListener("click", function (event) {
+            var target = event.target;
+            if (!target || !target.closest) return;
+            if (!target.closest("#hour-card, #minute-card, .colon")) return;
+            event.preventDefault();
+            inviteClockInteraction(target);
+        });
+    }
+    if (clockInvite) {
+        clockInvite.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            inviteClockInteraction(event.currentTarget);
+        });
     }
 
     function markImmersiveInteraction() {
