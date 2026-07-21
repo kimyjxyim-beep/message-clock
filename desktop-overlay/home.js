@@ -1,11 +1,11 @@
 (function(){
   'use strict';
-  var bed=document.getElementById('bed'),food=document.getElementById('food'),water=document.getElementById('water'),bubble=document.getElementById('home-bubble'),status=document.getElementById('food-status');
+  var bed=document.getElementById('bed'),food=document.getElementById('food'),water=document.getElementById('water'),toy=document.getElementById('toy'),bubble=document.getElementById('home-bubble'),status=document.getElementById('food-status');
   var timer=null;
   function say(text){bubble.textContent=text;bubble.classList.add('show');clearTimeout(timer);timer=setTimeout(function(){bubble.classList.remove('show');},3000);}
   function setImage(button,url){var img=button.querySelector('img');if(url){img.src=url;img.addEventListener('error',function(){img.style.visibility='hidden';console.error('[Jinzhu home] image failed',url);});}}
   function action(type){window.jinzhuHome.action(type);if(type==='food')say('多谢你，我开餐啦。');else say('饮水时间到啦。');}
-  food.addEventListener('click',function(){action('food');});water.addEventListener('click',function(){action('water');});
+  food.addEventListener('click',function(){action('food');});water.addEventListener('click',function(){action('water');});toy.addEventListener('click',function(){window.jinzhuHome.action('toy');say('捉到啦。');});
   window.jinzhuHome.onPetState(function(state){
     var behavior=state&&state.behavior||'';
     food.classList.toggle('in-use',behavior==='eat-at-bowl');

@@ -128,7 +128,8 @@ function petWorld(){
   const world={x:Math.max(display.x,home?home.x-220:display.x),y:Math.max(display.y,home?home.y-45:display.y),width:Math.min(display.width,home?home.width+440:display.width),height:Math.min(display.height,home?home.height+300:display.height)};
   world.width=Math.max(280,Math.min(world.width,display.x+display.width-world.x));
   world.height=Math.max(220,Math.min(world.height,display.y+display.height-world.y));
-  return {display,world,home,food,water,pet:{x:state.x,y:state.y},target:movementTarget};
+  const toy=home?{x:home.x+207,y:home.y+home.height-30}:{x:display.x+260,y:display.y+display.height-80};
+  return {display,world,home,food,water,toy,pet:{x:state.x,y:state.y},target:movementTarget};
 }
 function explorationTarget(kind){
   const model=petWorld(), a=model.world, extent=windowExtent(), maxX=a.x+a.width-extent.width, maxY=a.y+a.height-extent.height, cursor=screen.getCursorScreenPoint();
@@ -182,6 +183,7 @@ function homeTarget(type){
   const model=petWorld();
   const target=type==='food'?{x:model.food.x-150,y:model.food.y-170,type:'food-bowl'}:
     type==='water'?{x:model.water.x-150,y:model.water.y-170,type:'water-bowl'}:
+    type==='toy'?{x:model.toy.x-120,y:model.toy.y-175,type:'toy'}:
     {x:model.home?model.home.x+20:model.world.x,y:model.home?model.home.y-170:model.world.y,type:'home'};
   appendDiagnostic('pet-world-target',{world:model,target,reason:type});
   return target;
@@ -200,6 +202,10 @@ function goToLifePlace(type,userInitiated){
       sendBehavior('drink-at-bowl',9000,'我饮水，你都要饮。'); scheduleTask(()=>{state.hydration=Math.min(100,state.hydration+40);saveState();sendBehavior('happy',2200,'饮完啦。');scheduleBehavior(5000);},9000);
     }
   });
+}
+function goToToy(){
+  const target=homeTarget('toy');
+  moveTo(target,'play',randomBetween(2500,4500),()=>{sendBehavior('play',7000,sayFrom(['捉到啦！','再抛远啲呀。','同你玩一阵先。']));scheduleBehavior(9000);});
 }
 function runNextBehavior(){
   if(state.paused||!win||!win.isVisible())return;
@@ -350,7 +356,7 @@ ipcMain.on('overlay:toggle-pause', () => { state.paused = !state.paused; saveSta
 ipcMain.on('overlay:toggle-top', () => { state.alwaysOnTop = !state.alwaysOnTop; if (win) win.setAlwaysOnTop(state.alwaysOnTop, 'pop-up-menu'); if(homeWin)homeWin.setAlwaysOnTop(state.alwaysOnTop,'floating'); saveState(); });
 ipcMain.on('overlay:hide', () => win && win.hide());
 ipcMain.handle('home:get-bootstrap', () => bootstrapInfo());
-ipcMain.on('home:action', (_, type) => { if (type === 'food') { state.foodAmount = Math.max(1, Number(state.foodAmount || 0)); goToLifePlace('food', true); } else if (type === 'water') goToLifePlace('water', true); });
+ipcMain.on('home:action', (_, type) => { if (type === 'food') { state.foodAmount = Math.max(1, Number(state.foodAmount || 0)); goToLifePlace('food', true); } else if (type === 'water') goToLifePlace('water', true); else if (type === 'toy') goToToy(); });
 ipcMain.on('home:drag-delta', (_, delta) => { if (!homeWin || !delta) return; const p = homeWin.getPosition(); setHomePosition(p[0] + (Number(delta.dx) || 0), p[1] + (Number(delta.dy) || 0)); });
 process.on('uncaughtException', (error) => appendDiagnostic('uncaught-exception', { error: error.message, stack: error.stack }));
 process.on('unhandledRejection', (error) => appendDiagnostic('unhandled-rejection', { error: String(error), stack: error && error.stack }));
