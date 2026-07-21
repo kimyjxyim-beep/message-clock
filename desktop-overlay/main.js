@@ -167,7 +167,7 @@ function homeTarget(type){
   // The water bowl is on the right side of the home scene.  Place the pet
   // window to its left so the muzzle reaches the bowl edge without the body
   // sitting on top of it (the renderer keeps the bowl as a separate layer).
-  if(type==='water')return{x:b.x+4,y:b.y-35,type:'water-bowl'};
+  if(type==='water')return{x:b.x+95,y:b.y-35,type:'water-bowl'};
   return{x:b.x+23,y:b.y-35,type:'food-bowl'};
 }
 function goToLifePlace(type,userInitiated){
