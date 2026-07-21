@@ -724,7 +724,7 @@
         if (!debugBox) return;
         var sky = skyState();
         debugBox.innerHTML = "<div>world " + sky.phase + " " + Math.round(sky.progress * 100) + "% · queue " + reminderQueue.join(",") + " · storage " + (storage.available ? "local" : "memory-only") + "</div>" +
-            "<div class='jinzhu-debug-actions'><button data-debug='water'>水</button><button data-debug='breakfast'>早</button><button data-debug='lunch'>午</button><button data-debug='dinner'>晚</button><button data-debug='rest'>休</button><button data-debug='rain'>雨</button><button data-debug='clear'>晴</button><button data-debug='sleep'>睡</button><button data-debug='eat'>食</button><button data-debug='move'>走</button><button data-debug='ipad'>iPad</button><button data-debug='clock-perch'>趴</button><button data-debug='clock-hook'>挂</button><button data-debug='clock-nap'>睡钟</button><button data-debug='clock-peek'>探</button><button data-debug='colon-sit'>:</button></div>";
+            "<div class='jinzhu-debug-actions'><button data-debug='water'>水</button><button data-debug='breakfast'>早</button><button data-debug='lunch'>午</button><button data-debug='dinner'>晚</button><button data-debug='rest'>休</button><button data-debug='rain'>雨</button><button data-debug='clear'>晴</button><button data-debug='sleep'>睡</button><button data-debug='eat'>食</button><button data-debug='move'>走</button><button data-debug='ipad'>iPad</button><button data-debug='clock-perch'>趴</button><button data-debug='clock-hook'>挂</button><button data-debug='clock-nap'>睡钟</button><button data-debug='clock-peek'>探</button><button data-debug='colon-sit'>:</button><button data-debug='clock-scratch'>爪</button><button data-debug='clock-pull'>翻</button></div>";
     }
     function noteActivity() { lastActivityAt = Date.now(); }
 
@@ -761,6 +761,8 @@
             else if (command === "eat") api.forceEat();
             else if (command === "move") api.forceMove();
             else if (command === "ipad") api.forceIPadFallback();
+            else if (command === "clock-scratch" && api.forceClockScratch) api.forceClockScratch();
+            else if (command === "clock-pull" && api.forceClockPull) api.forceClockPull();
             else if (api.forceClockState) api.forceClockState(command);
             updateDebug();
         });

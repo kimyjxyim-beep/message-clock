@@ -78,11 +78,14 @@
     var perched = false;
     var clockAnchorActive = "";
     var clockAnchorTimer = null;
+    var clockScratchActive = false;
+    var lastScratchWindow = "";
     var spriteBase = "assets/jinzhu/";
     var behaviorClasses = [
         "sleeping", "sleepy", "idle", "look-around", "grooming",
         "walking", "tap-running", "playing", "eating", "happy", "rain", "heat", "fan",
-        "climbing", "perched", "climbing-down", "clock-perch", "clock-hook", "clock-nap", "clock-peek", "colon-sit"
+        "climbing", "perched", "climbing-down", "clock-perch", "clock-hook", "clock-nap", "clock-peek", "colon-sit",
+        "clock-scratching", "clock-flip-pull"
     ];
     var sprites = {
         idle: ["idle-1.png", "idle-2.png", "idle-3.png", "idle-5.png", "idle-2.png"],
@@ -105,13 +108,16 @@
         "clock-hook": ["climb-2.png", "climb-3.png", "climb-4.png"],
         "clock-nap": ["sleep-curl-1.png", "sleep-curl-2.png", "sleep-curl-3.png"],
         "clock-peek": ["clock-peek-1.png"],
-        "colon-sit": ["idle-1.png", "idle-2.png"]
+        "colon-sit": ["idle-1.png", "idle-2.png"],
+        "clock-scratching": ["climb-2.png", "climb-3.png", "climb-2.png", "climb-4.png"],
+        "clock-flip-pull": ["climb-4.png", "climb-5.png", "climb-down-1.png", "climb-down-2.png"]
     };
     var spriteSpeeds = {
         idle: 1100, walking: 145, "tap-running": 92, "look-around": 700, grooming: 760,
         playing: 420, happy: 330, eating: 620, sleepy: 1800, sleeping: 3200, rain: 1100, fan: 620,
         climbing: 620, perched: 2200, "climbing-down": 680,
-        "clock-perch": 2200, "clock-hook": 750, "clock-nap": 3200, "clock-peek": 2000, "colon-sit": 1800
+        "clock-perch": 2200, "clock-hook": 750, "clock-nap": 3200, "clock-peek": 2000, "colon-sit": 1800,
+        "clock-scratching": 360, "clock-flip-pull": 145
     };
     var now = Date.now();
     var state = {
@@ -124,6 +130,7 @@
         lastFed: 0,
         nextWalkAllowed: now,
         nextClimbAllowed: now,
+        nextScratchAllowed: now,
         sleepUntil: 0,
         routineOffsetMinutes: Math.round(Math.random() * 30 - 15),
         behavior: "idle",
@@ -256,7 +263,7 @@
         var index = 0;
         catImage.src = spriteBase + frames[0];
         if (document.hidden || reduceMotion.matches || frames.length < 2) return;
-        if (simpleMotion && status !== "walking" && status !== "tap-running" && status !== "climbing" && status !== "climbing-down" && status !== "eating") return;
+        if (simpleMotion && status !== "walking" && status !== "tap-running" && status !== "climbing" && status !== "climbing-down" && status !== "eating" && status !== "clock-scratching" && status !== "clock-flip-pull") return;
         if (status === "eating") {
             var eatingStep = Math.max(900, (pendingEatingDuration - 2000) / 4);
             spriteTimer = setInterval(function () {
@@ -621,8 +628,65 @@
         schedule(randomBetween(45, 120) * 1000, chooseNextBehavior);
     }
 
+    /* The hour scratch is a small, self-contained clock moment.  It never
+       turns the clock into a button: Jinzhu only approaches an outer edge,
+       scratches briefly, then reacts if that particular card actually flips. */
+    function clockScratchPoint() {
+        var card = document.getElementById("hour-card");
+        if (!card) return null;
+        var rect = card.getBoundingClientRect();
+        var w = walker.offsetWidth || 116;
+        var h = walker.offsetHeight || 116;
+        if (!rect.width || !rect.height) return null;
+        return clampPosition({
+            x: rect.left - w * .56,
+            y: rect.top + rect.height * .22 - h * .08
+        });
+    }
+
+    function finishClockScratch() {
+        if (!clockScratchActive) return;
+        clockScratchActive = false;
+        home.classList.remove("on-clock");
+        home.style.removeProperty("--jinzhu-perch-scale");
+        setStatus("idle");
+        schedule(randomBetween(45, 120) * 1000, chooseNextBehavior);
+    }
+
+    function startClockScratch(force) {
+        if (clockScratchActive || clockAnchorActive || climbing || perched || reduceMotion.matches) return false;
+        if (!force && (Date.now() < Number(state.nextScratchAllowed || 0) || reminderActive || panel.hidden === false)) return false;
+        if (feedingPending || currentStatus === "eating" || currentStatus === "sleeping" || currentStatus === "happy" || currentStatus === "rain" || currentStatus === "fan") return false;
+        var point = clockScratchPoint();
+        if (!point) return false;
+        clearScheduler();
+        clockScratchActive = true;
+        state.nextScratchAllowed = Date.now() + 3 * 60 * 60000;
+        home.classList.add("on-clock");
+        home.style.setProperty("--jinzhu-perch-scale", ".64");
+        home.style.setProperty("--jinzhu-facing", "1");
+        setStatus("walking");
+        setPosition(point, scaledDuration(1000), false);
+        schedule(1120, function () {
+            if (!clockScratchActive) return;
+            setStatus("clock-scratching");
+            schedule(6500, finishClockScratch, true);
+        }, true);
+        saveState();
+        return true;
+    }
+
+    function pullClockFlip(detail) {
+        if (!clockScratchActive || !detail || detail.card !== "hour") return false;
+        clearScheduler();
+        setStatus("clock-flip-pull");
+        setPosition({ x: currentPosition.x - 10, y: currentPosition.y + 24 }, 380, false);
+        schedule(900, finishClockScratch, true);
+        return true;
+    }
+
     function startClockAnchor(kind, force) {
-        if (!force && (Date.now() < Number(state.nextClimbAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches)) return false;
+        if (clockScratchActive || (!force && (Date.now() < Number(state.nextClimbAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches))) return false;
         if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan") return false;
         var anchor = clockAnchorPoint(kind);
         if (!anchor || !anchor.point) return false;
@@ -679,7 +743,7 @@
     }
 
     function startClockClimb(force) {
-        if (climbing || perched || reduceMotion.matches || simpleMotion || reminderActive || panel.hidden === false) return false;
+        if (clockScratchActive || climbing || perched || reduceMotion.matches || simpleMotion || reminderActive || panel.hidden === false) return false;
         if (!force && Date.now() < Number(state.nextClimbAllowed || 0)) return false;
         var geometry = clockClimbGeometry();
         if (!geometry) return false;
@@ -847,6 +911,7 @@
     function forceDebugAction(action) {
         var clockStates = { clockPerch: "clock-perch", clockHook: "clock-hook", clockNap: "clock-nap", clockPeek: "clock-peek", colonSit: "colon-sit" };
         if (clockStates[action]) { startClockAnchor(clockStates[action], true); return; }
+        if (action === "clockScratch") { startClockScratch(true); return; }
         if (action === "sleeping") startSleeping();
         else if (action === "sleepy") startSleepy();
         else if (action === "walking") { state.nextWalkAllowed = 0; startWalking(); }
@@ -1300,7 +1365,11 @@
     });
 
     function recalculatePosition() {
-        if (clockAnchorActive) {
+        if (clockScratchActive) {
+            var scratchPoint = clockScratchPoint();
+            if (scratchPoint) setPosition(scratchPoint, 0, false);
+            else finishClockScratch();
+        } else if (clockAnchorActive) {
             var anchor = clockAnchorPoint(clockAnchorActive);
             if (anchor && anchor.point) setPosition(anchor.point, 0, false);
             else endClockAnchor();
@@ -1324,6 +1393,18 @@
     window.addEventListener("orientationchange", function () { setTimeout(recalculatePosition, 120); });
     window.addEventListener("scroll", recalculatePosition, { passive: true });
     window.addEventListener("jinzhu:clock-change", function () { recalculatePosition(); updateClockAnchorOverlay(); });
+    window.addEventListener("jinzhu:clock-tick", function (event) {
+        var detail = event && event.detail || {};
+        var minute = Number(detail.minute), second = Number(detail.second);
+        var hourKey = String(detail.hour || "") + ":" + String(minute);
+        /* A sleepy, eating, or busy cat is never pulled into this gag.  When
+           awake, she only tries it occasionally just before an hour changes. */
+        if (minute === 59 && second === 56 && lastScratchWindow !== hourKey) {
+            lastScratchWindow = hourKey;
+            if (Math.random() < .42) startClockScratch(false);
+        }
+    });
+    window.addEventListener("jinzhu:clock-flip", function (event) { pullClockFlip(event && event.detail); });
 
     document.addEventListener("visibilitychange", function () {
         clearScheduler();
@@ -1381,7 +1462,7 @@
             };
         },
         isBusy: function () {
-                return feedingPending || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "fan" || climbing || perched;
+                return feedingPending || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "fan" || climbing || perched || clockScratchActive;
         },
         say: say,
         openInteractions: openInteractions,
@@ -1391,6 +1472,7 @@
         closeMenu: closeInteractions,
         startClockClimb: function () { state.nextClimbAllowed = 0; return startClockClimb(true); },
         startClockAnchor: function (kind) { return startClockAnchor(kind, true); },
+        startClockScratch: function () { return startClockScratch(true); },
         forceMove: function () { state.nextWalkAllowed = 0; startWalking(); },
         requestRain: requestRain,
         requestHeat: requestHeat,
@@ -1426,6 +1508,8 @@
         window.JinzhuDebug = {
             forceMove: function () { state.nextWalkAllowed = 0; startWalking(); },
             forceClockState: function (kind) { return startClockAnchor(kind, true); },
+            forceClockScratch: function () { return startClockScratch(true); },
+            forceClockPull: function () { return pullClockFlip({ card: "hour" }); },
             forceSleep: function () { startSleeping(); },
             forceEat: function () { beginFeeding(); },
             forceIPadFallback: function () { legacyPosition = true; home.classList.add("jinzhu-legacy-position"); setPosition({ x: NaN, y: NaN }, 0); },

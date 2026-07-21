@@ -15,7 +15,7 @@ function flipUpdate(prefix, newValue) {
     var frontNum = document.getElementById(prefix + "-front-num");
     var backNum = document.getElementById(prefix + "-back-num");
 
-    if (!card || topNum.innerHTML === newValue) return;
+    if (!card || topNum.innerHTML === newValue) return false;
 
     // 前頁（翻走的那一半）先顯示舊值，後頁（翻進來的那一半）先放好新值
     frontNum.innerHTML = topNum.innerHTML;
@@ -36,6 +36,7 @@ function flipUpdate(prefix, newValue) {
         void card.offsetWidth;            // 強制 reflow
         card.classList.remove("no-anim");
     }, 430);
+    return true;
 }
 
 function updateTheme(hour) {
@@ -64,13 +65,17 @@ function updateClock() {
     var now = new Date();
     var hour = now.getHours();
     var minute = now.getMinutes();
+    var second = now.getSeconds();
     var hourStr = (hour < 10 ? "0" + hour : "" + hour);
     var minuteStr = (minute < 10 ? "0" + minute : "" + minute);
 
-    flipUpdate("hour", hourStr);
-    flipUpdate("minute", minuteStr);
+    var hourFlipped = flipUpdate("hour", hourStr);
+    var minuteFlipped = flipUpdate("minute", minuteStr);
     try {
-        window.dispatchEvent(new CustomEvent("jinzhu:clock-change", { detail: { hour: hourStr, minute: minuteStr } }));
+        window.dispatchEvent(new CustomEvent("jinzhu:clock-tick", { detail: { hour: hourStr, minute: minuteStr, second: second } }));
+        window.dispatchEvent(new CustomEvent("jinzhu:clock-change", { detail: { hour: hourStr, minute: minuteStr, second: second } }));
+        if (hourFlipped) window.dispatchEvent(new CustomEvent("jinzhu:clock-flip", { detail: { card: "hour", hour: hourStr, minute: minuteStr } }));
+        if (minuteFlipped) window.dispatchEvent(new CustomEvent("jinzhu:clock-flip", { detail: { card: "minute", hour: hourStr, minute: minuteStr } }));
     } catch (e) {}
 
     // 每次更新時間時，檢查並切換背景主題
