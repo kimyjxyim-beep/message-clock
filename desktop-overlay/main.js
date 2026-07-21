@@ -163,17 +163,17 @@ function moveTo(target,moveState,duration,onArrive){
 }
 function homeTarget(type){
   if(!homeWin||homeWin.isDestroyed())return explorationTarget('corner'); const b=homeWin.getBounds();
-  if(type==='food')return{x:b.x+23,y:b.y-35,type:'food-bowl'};
+  if(type==='food')return{x:b.x-8,y:b.y-35,type:'food-bowl'};
   if(type==='water')return{x:b.x+78,y:b.y-35,type:'water-bowl'};
-  return{x:b.x-52,y:b.y-138,type:'bed-top'};
+  return{x:b.x+23,y:b.y-35,type:'food-bowl'};
 }
 function goToLifePlace(type,userInitiated){
-  const target=homeTarget(type), moving=type==='bed'?'go-home':type==='food'?'go-to-food':'go-to-water';
-  const speech=type==='bed'?sayFrom(['我返窝窝瞓阵先。','今日巡逻完毕，晚安啦。']):type==='food'?sayFrom(['饭饭时间到啦。','多谢你，我开餐啦。']):'饮啖水先。';
+  const target=homeTarget(type), moving=type==='food'?'go-to-food':'go-to-water';
+  const speech=type==='food'?sayFrom(['饭饭时间到啦。','多谢你，我开餐啦。']):'饮啖水先。';
   if(win&&!win.isDestroyed()) win.webContents.send('overlay:speech',speech);
   moveTo(target,moving,randomBetween(3500,8000),()=>{
     if(win&&!win.isDestroyed()){win.setAlwaysOnTop(state.alwaysOnTop,'pop-up-menu');win.moveTop();}
-    if(type==='bed'){
+    if(type==='disabled-bed'){
       sendBehavior('enter-bed',2600,''); scheduleTask(()=>{sendBehavior('sleep-in-bed',randomBetween(30000,90000),sayFrom(['窝窝好舒服，你都早点休息。','唔好嘈我，我发紧梦呀。']));scheduleBehavior(randomBetween(30000,90000));},2600);
     }else if(type==='food'){
       sendBehavior('eat-at-bowl',11000,sayFrom(['今日份食物好香。','多谢你，我开餐啦。'])); scheduleTask(()=>{state.fullness=Math.min(100,state.fullness+35);state.foodAmount=Math.max(0,(state.foodAmount||0)-1);saveState();sendBehavior('happy',2400,'食饱啦，继续巡逻。');scheduleBehavior(5000);},11000);
@@ -185,11 +185,11 @@ function goToLifePlace(type,userInitiated){
 function runNextBehavior(){
   if(state.paused||!win||!win.isVisible())return;
   if(state.fullness<32){goToLifePlace('food');return;} if(state.hydration<30){goToLifePlace('water');return;}
-  const hour=new Date().getHours(); if((hour>=23||hour<7)&&Math.random()<.55){goToLifePlace('bed');return;}
+  const hour=new Date().getHours(); if((hour>=23||hour<7)&&Math.random()<.55){sendBehavior('idle',randomBetween(8000,16000),'夜晚啦，安静陪住你。');scheduleBehavior(randomBetween(12000,24000));return;}
   const roll=Math.random()*100;
   if(roll<18){const name=Math.random()<.35?'blink':Math.random()<.55?'look':'idle';sendBehavior(name,randomBetween(3000,9000));scheduleBehavior(randomBetween(5000,14000));return;}
   if(roll<53){const run=Math.random()<.4;moveTo(explorationTarget(),run?'run':'walk',run?randomBetween(3000,6000):randomBetween(4500,10000));return;}
-  if(roll<66){goToLifePlace('bed');return;}
+  if(roll<66){sendBehavior(Math.random()<.5?'groom':'look',randomBetween(5000,10000));scheduleBehavior(randomBetween(8000,18000));return;}
   if(roll<75){sendBehavior('groom',randomBetween(6000,15000),Math.random()<.25?'整理下毛先。':'');scheduleBehavior(randomBetween(8000,25000));return;}
   if(roll<85){const name=Math.random()<.55?'roll':'play';sendBehavior(name,randomBetween(5000,10000));scheduleBehavior(randomBetween(8000,22000));return;}
   if(roll<95){moveTo(explorationTarget(Math.random()<.55?'cursor':'corner'),'investigate',randomBetween(3500,8000),()=>{sendBehavior('look',randomBetween(4000,8000),'我过嚟睇下你。');scheduleBehavior(randomBetween(8000,25000));});return;}
@@ -197,7 +197,7 @@ function runNextBehavior(){
 }
 function reactToInteraction(action) {
   if (!action || state.paused) return;
-  if(action.type==='hover'&&(movementTarget||['eat-at-bowl','drink-at-bowl','enter-bed','sleep-in-bed','held'].indexOf(currentBehavior)>=0))return;
+  if(action.type==='hover'&&(movementTarget||['eat-at-bowl','drink-at-bowl','held'].indexOf(currentBehavior)>=0))return;
   clearBehaviorSchedule(); clearInterval(walkAnimation);
   if (action.type === 'hover') {
     if (['idle', 'look', 'blink'].indexOf(currentBehavior) >= 0) { sendBehavior(Math.random() < .5 ? 'look' : 'blink', 1400, ''); scheduleBehavior(4000); }
@@ -209,7 +209,7 @@ function reactToInteraction(action) {
     scheduleTask(() => { sendBehavior(Math.random() < .5 ? 'happy' : 'surprised', 2200, sayFrom(['放低我啦。', '哼，算你接得稳。'])); scheduleBehavior(4500); }, 900);
     return;
   }
-  if (action.type === 'click' && currentBehavior === 'sleep-in-bed') {
+  if (action.type === 'click' && currentBehavior === 'disabled-sleep') {
     if (Math.random() < .45) { sendBehavior('sleep-in-bed', 12000, '唔好嘈我，我发紧梦呀。'); scheduleBehavior(12000); return; }
     sendBehavior('wake', 1800, '再瞓多阵都唔得咩？');
     scheduleTask(() => { sendBehavior('stretch-after-sleep', 2600, ''); scheduleBehavior(4500); }, 1800);
@@ -311,7 +311,6 @@ app.whenReady().then(() => {
   if(process.argv.includes('--jinzhu-test-life')){
     setTimeout(()=>goToLifePlace('food',true),3000);
     setTimeout(()=>goToLifePlace('water',true),25000);
-    setTimeout(()=>goToLifePlace('bed',true),44000);
     setTimeout(quitApplication,59000);
   }
 }).catch((error) => appendDiagnostic('ready-error', { error: error.message, stack: error.stack }));
@@ -332,7 +331,7 @@ ipcMain.on('overlay:toggle-pause', () => { state.paused = !state.paused; saveSta
 ipcMain.on('overlay:toggle-top', () => { state.alwaysOnTop = !state.alwaysOnTop; if (win) win.setAlwaysOnTop(state.alwaysOnTop, 'pop-up-menu'); if(homeWin)homeWin.setAlwaysOnTop(state.alwaysOnTop,'floating'); saveState(); });
 ipcMain.on('overlay:hide', () => win && win.hide());
 ipcMain.handle('home:get-bootstrap', () => bootstrapInfo());
-ipcMain.on('home:action', (_, type) => { if (type === 'bed') goToLifePlace('bed', true); else if (type === 'food') { state.foodAmount = Math.max(1, Number(state.foodAmount || 0)); goToLifePlace('food', true); } else if (type === 'water') goToLifePlace('water', true); });
+ipcMain.on('home:action', (_, type) => { if (type === 'food') { state.foodAmount = Math.max(1, Number(state.foodAmount || 0)); goToLifePlace('food', true); } else if (type === 'water') goToLifePlace('water', true); });
 ipcMain.on('home:drag-delta', (_, delta) => { if (!homeWin || !delta) return; const p = homeWin.getPosition(); setHomePosition(p[0] + (Number(delta.dx) || 0), p[1] + (Number(delta.dy) || 0)); });
 process.on('uncaughtException', (error) => appendDiagnostic('uncaught-exception', { error: error.message, stack: error.stack }));
 process.on('unhandledRejection', (error) => appendDiagnostic('unhandled-rejection', { error: String(error), stack: error && error.stack }));
