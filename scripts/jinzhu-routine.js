@@ -24,6 +24,8 @@
     var bubbleText = document.getElementById("jinzhu-bubble-text");
     var bubbleMenu = null;
     var panel = document.getElementById("jinzhu-panel");
+    var clock = document.querySelector(".clock");
+    var clockInvite = document.getElementById("jinzhu-clock-invite");
     if (!home || !walker || !cat || !catImage || !bubble || !panel) return;
 
     var params = queryParameters(location.search);
@@ -644,6 +646,29 @@
         return true;
     }
 
+    function clockAnchorFromTarget(target) {
+        if (target && target.closest && target.closest("#hour-card")) return "clock-peek";
+        if (target && target.closest && target.closest("#minute-card")) return "clock-hook";
+        if (target && target.closest && target.closest(".colon")) return "colon-sit";
+        var kinds = routinePeriod() === "night" ? ["clock-nap", "clock-perch", "clock-peek"] : ["clock-perch", "clock-hook", "clock-peek", "colon-sit"];
+        return kinds[Math.floor(Math.random() * kinds.length)];
+    }
+
+    function inviteClockInteraction(target) {
+        if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan") {
+            say("等我忙完先上去。");
+            return;
+        }
+        if (reduceMotion.matches) {
+            say("我喺度望住时间呀。");
+            return;
+        }
+        closeInteractions(true);
+        tapAwayPending = false;
+        clearTimeout(tapAwayTimer);
+        if (!startClockAnchor(clockAnchorFromTarget(target), true)) say("呢度有啲高，等阵先。");
+    }
+
     function finishClockClimb() {
         climbing = false;
         perched = true;
@@ -999,6 +1024,16 @@
         if (tapAwayPending) openMenu();
         else startClickRun();
     });
+
+    if (clock) {
+        clock.addEventListener("click", function (event) {
+            var target = event.target;
+            if (!target || !target.closest) return;
+            if (!target.closest("#jinzhu-clock-invite, #hour-card, #minute-card, .colon")) return;
+            event.preventDefault();
+            inviteClockInteraction(target);
+        });
+    }
 
     if (bubbleMenu) bubbleMenu.addEventListener("click", function (event) {
         event.preventDefault();

@@ -61,6 +61,33 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     align-items: center;
     margin-bottom: 24px;
     width: 100%;
+    position: relative;
+}
+.jinzhu-clock-invite {
+    position: absolute;
+    top: -18px;
+    right: clamp(4px, 3vw, 24px);
+    z-index: 9;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 50%;
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: .62;
+    transition: opacity .2s ease, transform .2s ease, background .2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.jinzhu-clock-invite:hover,
+.jinzhu-clock-invite:focus-visible,
+.jinzhu-clock-invite:active {
+    opacity: 1;
+    background: rgba(255,255,255,.23);
+    transform: scale(1.08);
 }
 
 .clock > div {
