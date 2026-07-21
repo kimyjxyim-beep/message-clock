@@ -182,7 +182,7 @@ function moveTo(target,moveState,duration,onArrive){
 function homeTarget(type){
   const model=petWorld();
   const target=type==='food'?{x:model.food.x-150,y:model.food.y-170,type:'food-bowl'}:
-    type==='water'?{x:model.water.x-150,y:model.water.y-170,type:'water-bowl'}:
+    type==='water'?{x:model.water.x-205,y:model.water.y-170,type:'water-bowl'}:
     type==='toy'?{x:model.toy.x-120,y:model.toy.y-175,type:'toy'}:
     {x:model.home?model.home.x+20:model.world.x,y:model.home?model.home.y-170:model.world.y,type:'home'};
   appendDiagnostic('pet-world-target',{world:model,target,reason:type});
