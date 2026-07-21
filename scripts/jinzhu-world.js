@@ -1,3 +1,4 @@
+/* Jinzhu's world reactions, weather, reminders, and companion state. */
 (function initJinzhuWorld() {
     "use strict";
 

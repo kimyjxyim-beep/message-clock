@@ -1,3 +1,4 @@
+/* Main GitHub Pages styles: clock, weather, message board, and Jinzhu. */
 * {
     margin: 0;
     padding: 0;
@@ -22,7 +23,7 @@ body {
     justify-content: center;
     align-items: flex-start;
     min-height: 100vh;
-    overflow-y: auto; 
+    overflow-y: auto;
     overflow-x: hidden;
     transition: background 2s ease;
     background: linear-gradient(155deg, #07111f, #152b4a) fixed;
@@ -38,8 +39,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 
 .container {
     width: 95%;
-    max-width: 1200px; 
-    margin-top: 8vh; 
+    max-width: 1200px;
+    margin-top: 8vh;
     margin-bottom: 6vh;
     display: flex;
     flex-direction: column;
@@ -203,7 +204,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 
 .widget-section {
     width: 100%;
-    max-width: 920px; 
+    max-width: 920px;
     display: flex;
     justify-content: space-between;
     align-items: stretch;
@@ -630,7 +631,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 ==================== */
 @media (max-width: 1024px) {
     .flip-card {
-        width: 40vw;  
+        width: 40vw;
         height: 44vw;
         max-width: 390px;
         max-height: 430px;

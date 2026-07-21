@@ -1,3 +1,4 @@
+/* Jinzhu's low-frequency daily routine and movement scheduler. */
 (function initRealisticJinzhu() {
     "use strict";
 

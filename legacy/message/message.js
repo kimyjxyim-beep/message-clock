@@ -1,3 +1,4 @@
+/* Legacy standalone message-board administration page. */
 var msgContentEl = document.getElementById("msg-content");
 var sendMsgBtn = document.getElementById("send-msg-btn");
 var statusEl = document.getElementById("status");

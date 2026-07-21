@@ -1,3 +1,4 @@
+/* Page bootstrap: clock, weather, message board, and wallpaper compatibility. */
 /* Lively Wallpaper mode: keep the clock/weather atmosphere, hide pet controls.
    Use a string fallback so the page still works on old iPad Safari. */
 (function () {
@@ -41,7 +42,7 @@ function updateTheme(hour) {
     if (window.JINZHU_WORLD_V1) return;
     var body = document.body;
     var newTheme = "";
-    
+
     if (hour >= 5 && hour < 8) {
         newTheme = "theme-sunrise";
     } else if (hour >= 8 && hour < 17) {
@@ -71,7 +72,7 @@ function updateClock() {
     try {
         window.dispatchEvent(new CustomEvent("jinzhu:clock-change", { detail: { hour: hourStr, minute: minuteStr } }));
     } catch (e) {}
-    
+
     // 每次更新時間時，檢查並切換背景主題
     updateTheme(hour);
 
@@ -163,22 +164,22 @@ function fetchLatestMessage() {
                 var data = JSON.parse(xhr.responseText);
                 if (data && data.length > 0) {
                     var currentTopMessage = data[0].content;
-                    
+
                     if (currentTopMessage !== lastTopMessage) {
                         var htmlList = "";
                         for (var i = 0; i < data.length; i++) {
                             htmlList += "<div class='msg-item'>💬 " + data[i].content + "</div>";
                         }
-                        
+
                         document.getElementById("message").innerHTML = htmlList;
-                        
+
                         if (!firstMessageLoad) {
                             playDing();
                             var msgBox = document.querySelector(".message");
                             msgBox.classList.add("pulse");
                             setTimeout(function () { msgBox.classList.remove("pulse"); }, 800);
                         }
-                        
+
                         lastTopMessage = currentTopMessage;
                         firstMessageLoad = false;
                     }

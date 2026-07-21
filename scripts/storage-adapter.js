@@ -1,3 +1,4 @@
+/* Storage abstraction for Jinzhu's browser-local state. */
 (function defineStorageAdapters() {
     "use strict";
     function StorageAdapter() {}

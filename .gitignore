@@ -1,2 +1,7 @@
 desktop-overlay/node_modules/
 desktop-overlay/dist/
+
+# Local workspaces and generated output; these are not part of GitHub Pages.
+KY-Workspace/
+KY-Asset-Lab/
+outputs/
