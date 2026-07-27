@@ -28,6 +28,7 @@
 
     var params = queryParameters(location.search);
     var debugMode = params.get("jinzhuDebug") === "1" || params.get("jinzhuTestMode") === "1";
+    var actionTestMode = params.get("jinzhutest") === "1";
     var debugHold = debugMode && params.get("jinzhuHold") === "1";
     var debugNormalSpeed = debugMode && params.get("jinzhuSpeed") === "normal";
     var debugDelayedAction = debugMode && params.get("jinzhuDelay") === "1";
@@ -86,7 +87,8 @@
         "walking", "tap-running", "playing", "eating", "happy", "rain", "heat", "fan",
         "climbing", "perched", "climbing-down", "clock-perch", "clock-hook", "clock-nap", "clock-peek", "colon-sit",
         "clock-scratching", "clock-flip-pull",
-        "message-sit", "message-peek", "message-paw"
+        "message-sit", "message-peek", "message-paw",
+        "turn", "stretch", "crouch", "side-sleep", "look-clock", "jump-clock", "lie-clock", "card-peek", "paw-rest", "paw-tap"
     ];
     var sprites = {
         idle: ["idle-1.png", "idle-2.png", "idle-3.png", "idle-5.png", "idle-2.png"],
@@ -117,6 +119,20 @@
         "message-peek": ["clock-peek-1.png"],
         "message-paw": ["climb-2.png", "climb-3.png", "climb-2.png"]
     };
+    /* New actions deliberately live beside—not inside—the legacy sprite set. */
+    var newActionConfig = {
+        turn: { frames: ["animations/new-actions/free-roam/turn-01.png", "animations/new-actions/free-roam/turn-02.png", "animations/new-actions/free-roam/turn-03.png", "animations/new-actions/free-roam/turn-04.png"], frame: 180, cooldown: 22000 },
+        stretch: { frames: ["animations/new-actions/stretch/stretch-01.png", "animations/new-actions/stretch/stretch-02.png", "animations/new-actions/stretch/stretch-03.png", "animations/new-actions/stretch/stretch-04.png"], frame: 240, cooldown: 90000 },
+        crouch: { frames: ["animations/new-actions/rest/crouch-01.png", "animations/new-actions/rest/crouch-02.png", "animations/new-actions/rest/crouch-03.png", "animations/new-actions/rest/crouch-04.png"], frame: 210, cooldown: 70000 },
+        "side-sleep": { frames: ["animations/new-actions/rest/side-sleep-01.png", "animations/new-actions/rest/side-sleep-02.png", "animations/new-actions/rest/side-sleep-03.png", "animations/new-actions/rest/side-sleep-04.png"], frame: 520, cooldown: 150000 },
+        "look-clock": { frames: ["animations/new-actions/clock/look-clock-01.png", "animations/new-actions/clock/look-clock-02.png", "animations/new-actions/clock/look-clock-03.png", "animations/new-actions/clock/look-clock-04.png"], frame: 280, cooldown: 90000 },
+        "jump-clock": { frames: ["animations/new-actions/clock/jump-clock-01.png", "animations/new-actions/clock/jump-clock-02.png", "animations/new-actions/clock/jump-clock-03.png", "animations/new-actions/clock/jump-clock-04.png"], frame: 180, cooldown: 120000 },
+        "lie-clock": { frames: ["animations/new-actions/clock/lie-clock-01.png", "animations/new-actions/clock/lie-clock-02.png", "animations/new-actions/clock/lie-clock-03.png", "animations/new-actions/clock/lie-clock-04.png"], frame: 520, cooldown: 150000 },
+        "card-peek": { frames: ["animations/new-actions/card-peek/peek-01.png", "animations/new-actions/card-peek/peek-02.png", "animations/new-actions/card-peek/peek-03.png", "animations/new-actions/card-peek/peek-04.png"], frame: 360, cooldown: 100000 },
+        "paw-rest": { frames: ["animations/new-actions/card-paw/paw-rest-01.png", "animations/new-actions/card-paw/paw-rest-02.png", "animations/new-actions/card-paw/paw-rest-03.png", "animations/new-actions/card-paw/paw-rest-04.png"], frame: 250, cooldown: 90000 },
+        "paw-tap": { frames: ["animations/new-actions/card-paw/paw-tap-01.png", "animations/new-actions/card-paw/paw-tap-02.png", "animations/new-actions/card-paw/paw-tap-03.png", "animations/new-actions/card-paw/paw-tap-04.png"], frame: 150, cooldown: 90000 }
+    };
+    Object.keys(newActionConfig).forEach(function (name) { sprites[name] = newActionConfig[name].frames; });
     var spriteSpeeds = {
         idle: 1100, walking: 145, "tap-running": 92, "look-around": 700, grooming: 760,
         playing: 420, happy: 330, eating: 620, sleepy: 1800, sleeping: 3200, rain: 1100, fan: 620,
@@ -475,7 +491,9 @@
             x: bounds.minX + clamp(Number(state.positionX) * 100) / 100 * (bounds.maxX - bounds.minX),
             y: bounds.minY + clamp(Number(state.positionY) * 100) / 100 * (bounds.maxY - bounds.minY)
         });
-        return findSafeRestingPosition(preferred);
+        /* Resize only clamps an out-of-bounds position; it never teleports Jinzhu
+           to the old bottom-edge safe-point list. */
+        return preferred;
     }
 
     function restingPositionIsClear(position) {
@@ -562,16 +580,10 @@
         var b = getViewportBounds();
         var points = roamingPoints();
         if (debugPoint && points[debugPoint]) return points[debugPoint];
-        var names = Object.keys(points).filter(function (name) { return points[name]; });
-        var candidate;
-        if (Math.random() < .76) {
-            candidate = points[names[Math.floor(Math.random() * names.length)]];
-        } else {
-            candidate = { x: randomBetween(b.minX, b.maxX), y: randomBetween(b.minY, b.maxY) };
-        }
-        if (Math.abs(candidate.x - currentPosition.x) + Math.abs(candidate.y - currentPosition.y) < 45) {
-            candidate = points[names[(names.indexOf(debugPoint) + 5 + Math.floor(Math.random() * names.length)) % names.length]];
-        }
+        /* Most destinations are continuous whole-viewport points.  Named UI points
+           are occasional flavour, never a safety cage or a bottom-home fallback. */
+        var candidate = Math.random() < .82 ? { x: randomBetween(b.minX, b.maxX), y: randomBetween(b.minY, b.maxY) } : points[Object.keys(points)[Math.floor(Math.random() * Object.keys(points).length)]];
+        if (!candidate || Math.abs(candidate.x - currentPosition.x) + Math.abs(candidate.y - currentPosition.y) < 70) candidate = { x: randomBetween(b.minX, b.maxX), y: randomBetween(b.minY, b.maxY) };
         return clampPosition(candidate);
     }
 
@@ -1083,6 +1095,27 @@
         });
     }
 
+    function newActionPoint(name) {
+        if (name === "look-clock" || name === "jump-clock" || name === "lie-clock") return pointNear(".clock", Math.random() < .5 ? "left" : "right") || currentPosition;
+        if (name === "card-peek" || name === "paw-rest" || name === "paw-tap") { var anchor = messageAnchorPoint(name === "card-peek" ? "message-peek" : "message-paw"); return anchor ? anchor.point : currentPosition; }
+        return randomRoamingPosition();
+    }
+    function playNewAction(name, force) {
+        var config = newActionConfig[name];
+        if (!config || (!force && (Date.now() < Number(state["newAction_" + name] || 0) || reminderActive || currentStatus === "sleeping" || currentStatus === "rain" || currentStatus === "heat"))) return false;
+        clearScheduler();
+        state["newAction_" + name] = Date.now() + config.cooldown;
+        var target = newActionPoint(name);
+        setStatus("walking");
+        setPosition(target, scaledDuration(randomBetween(650, 1500)), false);
+        schedule(1550, function () {
+            setStatus(name);
+            schedule(config.frame * config.frames.length * 2, function () { idleFor(12, 35); }, true);
+        }, true);
+        saveState();
+        return true;
+    }
+
     function startPlaying() {
         if (state.energy < 25 || state.fullness < 20) {
             idleFor(45, 100);
@@ -1190,6 +1223,7 @@
         else if (action === "look-around") startLookAround();
         else if (action === "grooming") startGrooming();
         else if (action === "walking") {
+            if (Math.random() < .22 && playNewAction(["turn", "stretch", "crouch", "look-clock", "card-peek", "paw-rest", "paw-tap"][Math.floor(Math.random() * 7)], false)) return;
             if (Math.random() < .08 && startClockAnchor(routinePeriod() === "night" ? "clock-nap" : ["clock-perch", "clock-hook", "clock-peek", "colon-sit"][Math.floor(Math.random() * 4)], false)) return;
             if (Math.random() < .06 && startMessageVisit(Math.random() < .4 ? "message-peek" : "message-sit", false)) return;
             if (Math.random() < .03 && startMessagePat(false)) return;
@@ -1757,6 +1791,8 @@
         tapColon: function () { return tapColon(false); },
         startClockScratch: function () { return startClockScratch(true); },
         forceMove: function () { state.nextWalkAllowed = 0; startWalking(); },
+        playNewAction: function (name) { return playNewAction(name, true); },
+        resumeFreeRoam: function () { clearScheduler(); setStatus("idle"); schedule(600, chooseNextBehavior, true); },
         requestRain: requestRain,
         requestHeat: requestHeat,
         activateCooling: activateCooling,
@@ -1805,12 +1841,24 @@
         };
     }
 
+    function installActionTestPanel() {
+        if (!actionTestMode) return;
+        var box = document.createElement("section");
+        box.className = "jinzhu-action-test";
+        box.innerHTML = "<b>金主動作測試</b>";
+        var actions = [["自由隨機走動", "move"], ["向左走", "left"], ["向右走", "right"], ["回頭", "turn"], ["伸懶腰", "stretch"], ["趴低", "crouch"], ["側睡", "side-sleep"], ["抬頭看時鐘", "look-clock"], ["卡片後探頭", "card-peek"], ["前爪搭住", "paw-rest"], ["拍一下", "paw-tap"], ["跳上時鐘", "jump-clock"], ["趴在時鐘上", "lie-clock"], ["恢復日常自由活動", "resume"]];
+        actions.forEach(function (item) { var button = document.createElement("button"); button.type = "button"; button.textContent = item[0]; button.setAttribute("data-action", item[1]); box.appendChild(button); });
+        box.addEventListener("click", function (event) { var action = event.target.getAttribute("data-action"); if (!action) return; if (action === "resume") return window.JinzhuBridge.resumeFreeRoam(); if (action === "move") return window.JinzhuBridge.forceMove(); if (action === "left" || action === "right") { var b = getViewportBounds(); setStatus("walking"); setPosition({ x: action === "left" ? b.minX : b.maxX, y: randomBetween(b.minY, b.maxY) }, 1200); return; } window.JinzhuBridge.playNewAction(action); });
+        document.body.appendChild(box);
+    }
+
     catImage.addEventListener("error", function () {
         if (catImage.getAttribute("src") !== spriteBase + "idle-1.png") catImage.src = spriteBase + "idle-1.png";
     });
     home.classList.toggle("jinzhu-simple-motion", simpleMotion);
 
     renderStats();
+    installActionTestPanel();
     setPosition(restoredPosition(), 0, false);
     restoreRoutine();
     if (debugOpenPanel) setTimeout(function () { openInteractions("调试互动选项"); }, 60);
