@@ -720,7 +720,7 @@
 
     function startMessageVisit(kind, force) {
         if (!force && (Date.now() < Number(state.nextMessageVisitAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches)) return false;
-        if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan" || climbing || perched || clockAnchorActive) return false;
+        if (feedingPending || currentStatus === "eating" || currentStatus === "sleeping" || currentStatus === "sleepy" || currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan" || climbing || perched || clockAnchorActive) return false;
         var anchor = messageAnchorPoint(kind);
         if (!anchor) return false;
         clearScheduler();
@@ -892,7 +892,7 @@
 
     function startClockAnchor(kind, force) {
         if (clockScratchActive || messageAnchorActive || (!force && (Date.now() < Number(state.nextClimbAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches))) return false;
-        if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan") return false;
+        if (feedingPending || currentStatus === "eating" || currentStatus === "sleeping" || currentStatus === "sleepy" || currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan") return false;
         var anchor = clockAnchorPoint(kind);
         if (!anchor || !anchor.point) return false;
         clearScheduler();
@@ -959,7 +959,7 @@
     }
 
     function startClockClimb(force) {
-        if (clockScratchActive || climbing || perched || messageAnchorActive || reduceMotion.matches || simpleMotion || reminderActive || panel.hidden === false) return false;
+        if (clockScratchActive || climbing || perched || messageAnchorActive || currentStatus === "sleeping" || currentStatus === "sleepy" || reduceMotion.matches || simpleMotion || reminderActive || panel.hidden === false) return false;
         if (!force && Date.now() < Number(state.nextClimbAllowed || 0)) return false;
         var geometry = clockClimbGeometry();
         if (!geometry) return false;
