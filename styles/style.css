@@ -14,7 +14,21 @@
     --text-main: #f7f8ff;
     --border-color: rgba(255,255,255,.1);
     --shadow-color: rgba(0,0,0,.44);
+    --stage2-card-tint: rgba(255,255,255,0);
+    --stage2-digit-glow: rgba(255,255,255,.12);
 }
+
+/* Stage 2 lighting: background, cards and numerals are adjusted separately
+   from the cat.  CSS transitions keep weather changes calm and readable. */
+:root[data-light-period="morning"] { --sky-a: #526d86; --sky-b: #e79c7e; --stage2-digit-glow: rgba(255,234,207,.22); }
+:root[data-light-period="day"] { --sky-a: #2873a6; --sky-b: #62add4; --stage2-digit-glow: rgba(255,255,255,.16); }
+:root[data-light-period="dusk"] { --sky-a: #563f56; --sky-b: #ca795e; --stage2-digit-glow: rgba(255,202,157,.2); }
+:root[data-light-period="night"] { --sky-a: #101b31; --sky-b: #2c3e59; }
+:root[data-light-period="deep-night"] { --sky-a: #07101d; --sky-b: #17243a; --stage2-digit-glow: rgba(187,211,255,.12); }
+:root[data-weather-condition="cloudy"] { --stage2-card-tint: rgba(124,150,180,.07); }
+:root[data-weather-condition="rain"], :root[data-weather-condition="storm"] { --sky-a: #203445; --sky-b: #526d7c; --stage2-card-tint: rgba(212,231,241,.10); }
+:root[data-weather-condition="hot"] { --stage2-card-tint: rgba(255,195,131,.10); --stage2-digit-glow: rgba(255,226,184,.22); }
+:root[data-weather-condition="cold"] { --stage2-card-tint: rgba(181,220,255,.10); }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -29,6 +43,8 @@ body {
     background: linear-gradient(155deg, #07111f, #152b4a) fixed;
     background: linear-gradient(155deg, var(--sky-a), var(--sky-b)) fixed;
 }
+.card { background-color: var(--stage2-card-tint); transition: background-color 1.4s ease, box-shadow 1.4s ease; }
+.num { text-shadow: 0 0 18px var(--stage2-digit-glow); transition: text-shadow 1.4s ease; }
 
 /* 主題顏色 */
 body.theme-sunrise { background: linear-gradient(135deg, #2b4162 0%, #fa9c7a 100%); }
