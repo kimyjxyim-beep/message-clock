@@ -51,10 +51,23 @@
         if (item.level === "large") memory.daily.large++;
         save();
     }
+    var timer = null;
+    function startTimer() {
+        clearInterval(timer);
+        timer = setInterval(tick, 3 * 60 * 1000);
+    }
     window.addEventListener("jinzhu:idle", function (event) {
         if (event && event.detail && event.detail.level !== "awake") return;
         setTimeout(tick, 1500);
     });
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(tick, 8000); });
-    setInterval(tick, 3 * 60 * 1000);
+    document.addEventListener("visibilitychange", function () {
+        if (document.hidden) {
+            clearInterval(timer);
+            timer = null;
+            return;
+        }
+        startTimer();
+        setTimeout(tick, 8000);
+    });
+    startTimer();
 }());
