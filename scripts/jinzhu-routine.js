@@ -988,6 +988,7 @@
     }
 
     function startSleeping() {
+        home.classList.remove("jinzhu-deep-sleep");
         var period = routinePeriod();
         var minutes = period === "night" ? randomBetween(25, 90) : randomBetween(3, 10);
         state.sleepUntil = Date.now() + minutes * 60000;
@@ -996,6 +997,20 @@
         schedule(minutes * 60000, function () {
             state.sleepUntil = 0;
             setStatus(period === "night" || period === "wind-down" ? "sleepy" : "idle");
+            schedule(randomBetween(30, 90) * 1000, chooseNextBehavior);
+        });
+    }
+
+    function startDeepSleep() {
+        if (feedingPending || reminderActive || currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan") return;
+        clearScheduler();
+        state.sleepUntil = Date.now() + randomBetween(35, 90) * 60000;
+        home.classList.add("jinzhu-deep-sleep");
+        setStatus("sleeping");
+        schedule(state.sleepUntil - Date.now(), function () {
+            home.classList.remove("jinzhu-deep-sleep");
+            state.sleepUntil = 0;
+            setStatus("sleepy");
             schedule(randomBetween(30, 90) * 1000, chooseNextBehavior);
         });
     }
@@ -1664,6 +1679,10 @@
             if (currentStatus !== "sleeping" && !feedingPending && !reminderActive && currentStatus !== "rain" && currentStatus !== "heat" && currentStatus !== "fan") startSleeping();
             return;
         }
+        if (level === "deep-sleep") {
+            if (!home.classList.contains("jinzhu-deep-sleep")) startDeepSleep();
+            return;
+        }
         if (level === "drowsy") {
             if (currentStatus === "idle" || currentStatus === "look-around") startSleepy();
             return;
@@ -1672,6 +1691,7 @@
             state.lastInteraction = Date.now();
             if (currentStatus === "sleeping" || currentStatus === "sleepy") {
                 clearScheduler();
+                home.classList.remove("jinzhu-deep-sleep");
                 setStatus(Math.random() < .5 ? "look-around" : "idle");
                 schedule(randomBetween(20, 55) * 1000, chooseNextBehavior);
             }
