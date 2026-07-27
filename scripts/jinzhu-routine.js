@@ -85,7 +85,8 @@
         "sleeping", "sleepy", "idle", "look-around", "grooming",
         "walking", "tap-running", "playing", "eating", "happy", "rain", "heat", "fan",
         "climbing", "perched", "climbing-down", "clock-perch", "clock-hook", "clock-nap", "clock-peek", "colon-sit",
-        "clock-scratching", "clock-flip-pull"
+        "clock-scratching", "clock-flip-pull",
+        "message-sit", "message-peek", "message-paw"
     ];
     var sprites = {
         idle: ["idle-1.png", "idle-2.png", "idle-3.png", "idle-5.png", "idle-2.png"],
@@ -110,14 +111,19 @@
         "clock-peek": ["clock-peek-1.png"],
         "colon-sit": ["idle-1.png", "idle-2.png"],
         "clock-scratching": ["climb-2.png", "climb-3.png", "climb-2.png", "climb-4.png"],
-        "clock-flip-pull": ["climb-4.png", "climb-5.png", "climb-down-1.png", "climb-down-2.png"]
+        "clock-flip-pull": ["climb-4.png", "climb-5.png", "climb-down-1.png", "climb-down-2.png"],
+        // 留言板互动重用现有素材，暂不需要新画帧
+        "message-sit": ["perch-1.png", "perch-2.png"],
+        "message-peek": ["clock-peek-1.png"],
+        "message-paw": ["climb-2.png", "climb-3.png", "climb-2.png"]
     };
     var spriteSpeeds = {
         idle: 1100, walking: 145, "tap-running": 92, "look-around": 700, grooming: 760,
         playing: 420, happy: 330, eating: 620, sleepy: 1800, sleeping: 3200, rain: 1100, fan: 620,
         climbing: 620, perched: 2200, "climbing-down": 680,
         "clock-perch": 2200, "clock-hook": 750, "clock-nap": 3200, "clock-peek": 2000, "colon-sit": 1800,
-        "clock-scratching": 360, "clock-flip-pull": 145
+        "clock-scratching": 360, "clock-flip-pull": 145,
+        "message-sit": 2200, "message-peek": 2000, "message-paw": 380
     };
     var now = Date.now();
     var state = {
@@ -131,6 +137,9 @@
         nextWalkAllowed: now,
         nextClimbAllowed: now,
         nextScratchAllowed: now,
+        nextMessageVisitAllowed: now,
+        nextMessagePatAllowed: now,
+        nextMessagePawPrintAllowed: now,
         sleepUntil: 0,
         routineOffsetMinutes: Math.round(Math.random() * 30 - 15),
         behavior: "idle",
@@ -634,6 +643,141 @@
         });
     }
 
+    /* ==========================================================
+       留言板互动（第七節）
+       只读取留言板的位置/尺寸，从不修改留言板本身的 DOM 或内容。
+       爪印元素也不插进 .card.message 内部，而是浮在它上方的独立层，
+       避免碰到留言板原有结构。
+       ========================================================== */
+    var messageAnchorActive = "";
+    var messageAnchorTimer = null;
+
+    function messageBoardEl() {
+        return document.querySelector(".card.message");
+    }
+
+    function messageAnchorPoint(kind) {
+        var card = messageBoardEl();
+        if (!card) return null;
+        var rect = card.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+        var w = walker.offsetWidth || 116;
+        var h = walker.offsetHeight || 116;
+        var point;
+        if (kind === "message-peek") {
+            // 从留言板左上方探头，身体大部分留在卡片后面
+            point = { x: rect.left - w * .30, y: rect.top - h * .55 };
+        } else if (kind === "message-paw") {
+            // 靠近右下角，方便伸爪轻拍
+            point = { x: rect.right - w * .62, y: rect.bottom - h * .48 };
+        } else {
+            // message-sit：坐在留言板右下边缘
+            point = { x: rect.right - w * .55, y: rect.bottom - h * .30 };
+        }
+        return { point: clampPosition(point), rect: rect };
+    }
+
+    function endMessageAnchor() {
+        clearTimeout(messageAnchorTimer);
+        messageAnchorTimer = null;
+        messageAnchorActive = "";
+        home.classList.remove("on-message");
+        setStatus("idle");
+        schedule(randomBetween(45, 120) * 1000, chooseNextBehavior);
+    }
+
+    function startMessageVisit(kind, force) {
+        if (!force && (Date.now() < Number(state.nextMessageVisitAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches)) return false;
+        if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan" || climbing || perched || clockAnchorActive) return false;
+        var anchor = messageAnchorPoint(kind);
+        if (!anchor) return false;
+        clearScheduler();
+        clearTimeout(messageAnchorTimer);
+        messageAnchorActive = kind;
+        state.nextMessageVisitAllowed = Date.now() + randomBetween(10, 45) * 60000;
+        home.classList.add("on-message");
+        setStatus("walking");
+        setPosition(anchor.point, scaledDuration(randomBetween(2, 4) * 1000), false);
+        schedule(2600, function () {
+            if (!messageAnchorActive) return;
+            setStatus(kind);
+            if (kind === "message-peek") say("边度有新留言呀？");
+            else if (Math.random() < .3) say("睇下大家讲咗啲乜。");
+            messageAnchorTimer = setTimeout(endMessageAnchor, debugMode ? 3500 : randomBetween(15, 50) * 1000);
+        }, true);
+        saveState();
+        return true;
+    }
+
+    function spawnMessagePawPrint() {
+        var card = messageBoardEl();
+        if (!card) return false;
+        if (Date.now() < Number(state.nextMessagePawPrintAllowed || 0)) return false;
+        state.nextMessagePawPrintAllowed = Date.now() + randomBetween(5, 12) * 60000;
+        saveState();
+        var rect = card.getBoundingClientRect();
+        var print = document.createElement("div");
+        print.className = "jinzhu-paw-print";
+        // 只出现在卡片角落，不遮住主要文字
+        var corner = Math.random() < .5;
+        print.style.left = Math.round(corner ? rect.right - 34 : rect.left + 10) + "px";
+        print.style.top = Math.round(rect.bottom - 30) + "px";
+        document.body.appendChild(print);
+        setTimeout(function () { print.parentNode && print.parentNode.removeChild(print); }, 4200);
+        return true;
+    }
+
+    function nudgeMessageBoard() {
+        var card = messageBoardEl();
+        if (!card) return false;
+        if (Date.now() < Number(state.nextMessagePatAllowed || 0)) return false;
+        state.nextMessagePatAllowed = Date.now() + randomBetween(15, 45) * 60000;
+        saveState();
+        card.classList.add("jinzhu-msg-nudge");
+        setTimeout(function () { card.classList.remove("jinzhu-msg-nudge"); }, 900);
+        return true;
+    }
+
+    function startMessagePat(force) {
+        if (!startMessageVisit("message-paw", force)) return false;
+        schedule(3200, function () {
+            nudgeMessageBoard();
+            spawnMessagePawPrint();
+        }, true);
+        return true;
+    }
+
+    // 留言关键词反应：只做本机规则匹配，留言内容不会送去任何外部 AI 接口
+    var messageKeywordRules = [
+        { words: ["金主"], status: "look-around", say: "叫我做咩？" },
+        { words: ["食飯", "食饭"], status: "grooming", say: "讲起先知肚饿。" },
+        { words: ["瞓覺", "睡觉", "瞓覚"], status: "sleepy", say: "咁啱我都眼瞓。" },
+        { words: ["落雨", "下雨"], status: "look-around", say: "出边落紧雨呀？" },
+        { words: ["掛住你", "挂住你", "想你"], status: "look-around", say: null }
+    ];
+
+    function reactToMessage(content) {
+        if (!content || currentStatus === "sleeping" || currentStatus === "eating" || climbing || perched) return;
+        var text = String(content);
+        for (var i = 0; i < messageKeywordRules.length; i++) {
+            var rule = messageKeywordRules[i];
+            var matched = rule.words.some(function (word) { return text.indexOf(word) >= 0; });
+            if (!matched) continue;
+            if (Math.random() < .55) {
+                if (rule.status) setStatus(rule.status);
+                if (rule.say) say(rule.say);
+                else if (Math.random() < .5) say("喵。");
+                schedule(randomBetween(3, 6) * 1000, function () { idleFor(30, 90); });
+            }
+            break;
+        }
+    }
+
+    window.addEventListener("jinzhu:message", function (event) {
+        var detail = event && event.detail;
+        if (detail && detail.content) reactToMessage(detail.content);
+    });
+
     function endClockAnchor() {
         clearTimeout(clockAnchorTimer);
         clockAnchorTimer = null;
@@ -710,7 +854,7 @@
     }
 
     function startClockAnchor(kind, force) {
-        if (clockScratchActive || (!force && (Date.now() < Number(state.nextClimbAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches))) return false;
+        if (clockScratchActive || messageAnchorActive || (!force && (Date.now() < Number(state.nextClimbAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches))) return false;
         if (feedingPending || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "fan") return false;
         var anchor = clockAnchorPoint(kind);
         if (!anchor || !anchor.point) return false;
@@ -767,7 +911,7 @@
     }
 
     function startClockClimb(force) {
-        if (clockScratchActive || climbing || perched || reduceMotion.matches || simpleMotion || reminderActive || panel.hidden === false) return false;
+        if (clockScratchActive || climbing || perched || messageAnchorActive || reduceMotion.matches || simpleMotion || reminderActive || panel.hidden === false) return false;
         if (!force && Date.now() < Number(state.nextClimbAllowed || 0)) return false;
         var geometry = clockClimbGeometry();
         if (!geometry) return false;
@@ -983,6 +1127,8 @@
         else if (action === "grooming") startGrooming();
         else if (action === "walking") {
             if (Math.random() < .08 && startClockAnchor(routinePeriod() === "night" ? "clock-nap" : ["clock-perch", "clock-hook", "clock-peek", "colon-sit"][Math.floor(Math.random() * 4)], false)) return;
+            if (Math.random() < .06 && startMessageVisit(Math.random() < .4 ? "message-peek" : "message-sit", false)) return;
+            if (Math.random() < .03 && startMessagePat(false)) return;
             startWalking();
         }
         else if (action === "playing") startPlaying();
