@@ -35,4 +35,6 @@
 
 ## 驗證與已知項目
 
-已做靜態差異檢查與正式頁資料顯示檢查。仍應以 390×844、430×932、iPad 直向及桌面 Chrome/Safari 進行一次人工互動測試，尤其是旋轉後錨點與長閒置喚醒。
+已通過 JavaScript 語法解析與 `git diff --check`，並確認 GitHub Pages 已提供版本 34 的 `index.html`、Stage 2 模組與報告（HTTP 200）。也以公開 Open-Meteo 回應核對了所需天氣欄位及 `us_aqi` 欄位。
+
+自動化瀏覽器環境會由客戶端攔截外部 JavaScript，因而不能把它當作互動執行結果。仍應以 390×844、430×932、iPad 直向及桌面 Chrome/Safari 進行一次人工互動測試，尤其是旋轉後錨點與長閒置喚醒。
