@@ -91,9 +91,10 @@ function updateClock() {
         now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日 " + weekdays[now.getDay()];
 }
 
-var WEATHER_LAT = 23.13;
-var WEATHER_LON = 113.26;
+var WEATHER_LAT = 23.1291;
+var WEATHER_LON = 113.2644;
 var WEATHER_CITY_NAME = "广州";
+var WEATHER_TIMEZONE = "Asia/Shanghai";
 
 function weatherCodeToInfo(code) {
     if (code === 0 || code === 1) return { emoji: "☀️" };
@@ -105,38 +106,170 @@ function weatherCodeToInfo(code) {
     return { emoji: "☁️" };
 }
 
+// Use the US AQI scale because its category ranges are well-defined.  The
+// value remains real API data; absence is shown plainly as "--".
+function aqiCategoryText(aqi) {
+    if (aqi === null || aqi === undefined || isNaN(aqi)) return null;
+    if (aqi <= 50) return "优";
+    if (aqi <= 100) return "良";
+    if (aqi <= 150) return "轻度污染";
+    if (aqi <= 200) return "中度污染";
+    if (aqi <= 300) return "重度污染";
+    return "严重污染";
+}
+
+var WEATHER_CACHE_KEY = "jinzhu_weather_cache_v1";
+var WEATHER_CACHE_MAX_AGE = 15 * 60 * 1000; // 缓存超过15分钟不再当作即时数据使用
+
+function normalizeWeather(payload) {
+    var code = Number(payload.code);
+    var actual = Number(payload.temperature);
+    var apparent = Number(payload.apparentTemperature);
+    var feelsLike = isFinite(apparent) ? apparent : actual;
+    if (code >= 95 || (Number(payload.precipitation) > 2 && code >= 80)) return "storm";
+    if (Number(payload.rain) > 0 || Number(payload.precipitation) > 0 || (code >= 51 && code <= 82)) return "rain";
+    if (payload.isDay && (actual >= 32 || feelsLike >= 35)) return "hot";
+    if (actual <= 10) return "cold";
+    if (!payload.isDay) return "night";
+    if (code === 0 || code === 1) return "clear";
+    return "cloudy";
+}
+
+function syncJinzhuWeather(payload) {
+    var bridge = window.JinzhuBridge;
+    if (!bridge) return;
+    var rainy = payload.state === "rain" || payload.state === "storm";
+    if (bridge.requestRain) bridge.requestRain(rainy);
+    if (bridge.requestHeat) bridge.requestHeat(payload.state === "hot");
+}
+
+function renderWeather(payload) {
+    var info = weatherCodeToInfo(payload.code);
+    var temperature = Number(payload.temperature);
+    var tempText = isFinite(temperature) ? Math.round(temperature) + "°C" : "--°C";
+    document.getElementById("weather").innerHTML = info.emoji + " " + WEATHER_CITY_NAME + " " + tempText;
+
+    var humEl = document.getElementById("weather-humidity");
+    if (humEl) {
+        humEl.textContent = (payload.humidity !== null && payload.humidity !== undefined && !isNaN(payload.humidity))
+            ? Math.round(payload.humidity) + "%"
+            : "--%";
+    }
+
+    var aqiEl = document.getElementById("weather-aqi");
+    if (aqiEl) {
+        var aqiText = aqiCategoryText(payload.aqi);
+        aqiEl.textContent = (payload.aqi !== null && payload.aqi !== undefined && !isNaN(payload.aqi))
+            ? Math.round(payload.aqi) + " " + aqiText
+            : "--";
+    }
+}
+
+function saveWeatherCache(payload) {
+    try {
+        localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), payload: payload }));
+    } catch (e) {}
+}
+
+function loadWeatherCache() {
+    try {
+        var raw = localStorage.getItem(WEATHER_CACHE_KEY);
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!parsed || !parsed.payload) return null;
+        if (Date.now() - parsed.savedAt > WEATHER_CACHE_MAX_AGE) return null; // 过期缓存不当即时数据用
+        return parsed.payload;
+    } catch (e) {
+        return null;
+    }
+}
+
 function fetchWeather() {
+    // 主要天气：加入 relative_humidity_2m，之前完全没有请求这个字段，所以湿度永远是 --%
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WEATHER_LAT + "&longitude=" + WEATHER_LON +
-        "&current=temperature_2m,weather_code,precipitation,rain,showers&daily=sunrise,sunset&timezone=auto&forecast_days=1";
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", url, true);
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300) {
+        "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,precipitation,rain,wind_speed_10m,is_day" +
+        "&daily=sunrise,sunset&timezone=" + encodeURIComponent(WEATHER_TIMEZONE) + "&forecast_days=1";
+    // AQI 用独立的空气质量接口，同样不需要 API Key
+    var aqiUrl = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=" + WEATHER_LAT + "&longitude=" + WEATHER_LON +
+        "&current=us_aqi&timezone=" + encodeURIComponent(WEATHER_TIMEZONE);
+
+    var pending = { weather: null, aqi: undefined }; // aqi 用 undefined 表示"还没回来"
+
+    function tryFinish() {
+        if (pending.weather === null || pending.aqi === undefined) return;
+        var payload = pending.weather;
+        payload.aqi = pending.aqi; // 可能为 null，代表这次真的拿不到 AQI
+        payload.state = normalizeWeather(payload);
+        renderWeather(payload);
+        saveWeatherCache(payload);
+        window.dispatchEvent(new CustomEvent("jinzhu:weather", { detail: payload }));
+        syncJinzhuWeather(payload);
+    }
+
+    var weatherXhr = new XMLHttpRequest();
+    weatherXhr.open("GET", url, true);
+    weatherXhr.onreadystatechange = function () {
+        if (weatherXhr.readyState !== 4) return;
+        if (weatherXhr.status >= 200 && weatherXhr.status < 300) {
             try {
-                var data = JSON.parse(xhr.responseText);
+                var data = JSON.parse(weatherXhr.responseText);
                 var current = data && (data.current || data.current_weather);
                 if (current) {
                     var code = current.weather_code !== undefined ? current.weather_code : current.weathercode;
                     var temperature = current.temperature_2m !== undefined ? current.temperature_2m : current.temperature;
-                    var temp = Math.round(temperature);
-                    var info = weatherCodeToInfo(code);
-                    document.getElementById("weather").innerHTML = info.emoji + " " + WEATHER_CITY_NAME + " " + temp + "°C";
-                    window.dispatchEvent(new CustomEvent("jinzhu:weather", { detail: {
+                    pending.weather = {
                         code: Number(code),
                         temperature: Number(temperature),
+                        humidity: current.relative_humidity_2m !== undefined ? Number(current.relative_humidity_2m) : null,
+                        apparentTemperature: current.apparent_temperature !== undefined ? Number(current.apparent_temperature) : null,
                         precipitation: Number(current.precipitation || 0),
                         rain: Number(current.rain || 0),
-                        showers: Number(current.showers || 0),
+                        windSpeed: current.wind_speed_10m !== undefined ? Number(current.wind_speed_10m) : null,
+                        isDay: current.is_day === 1,
                         sunrise: data.daily && data.daily.sunrise ? data.daily.sunrise[0] : null,
                         sunset: data.daily && data.daily.sunset ? data.daily.sunset[0] : null,
                         timezone: data.timezone || "Asia/Shanghai",
                         utcOffsetSeconds: Number(data.utc_offset_seconds || 28800)
-                    } }));
+                    };
                 }
             } catch (e) {}
         }
+        if (pending.weather === null) {
+            // 请求失败或解析失败：退回到未过期的缓存，过期就显示缺失状态，不伪装成即时数据
+            var cached = loadWeatherCache();
+            if (cached) {
+                renderWeather(cached);
+            } else {
+                document.getElementById("weather").innerHTML = "☁️ " + WEATHER_CITY_NAME + " --°C";
+                renderWeather({ code: 3, temperature: NaN, humidity: null, aqi: null });
+            }
+            return; // 天气都拿不到就不用再等 AQI 了
+        }
+        if (pending.aqi === undefined) {
+            // 天气已到但 AQI 还没回来，先不 finish，等 AQI 请求结束（无论成功与否）
+        } else {
+            tryFinish();
+        }
     };
-    xhr.send();
+    weatherXhr.send();
+
+    var aqiXhr = new XMLHttpRequest();
+    aqiXhr.open("GET", aqiUrl, true);
+    aqiXhr.onreadystatechange = function () {
+        if (aqiXhr.readyState !== 4) return;
+        pending.aqi = null;
+        if (aqiXhr.status >= 200 && aqiXhr.status < 300) {
+            try {
+                var data = JSON.parse(aqiXhr.responseText);
+                var current = data && data.current;
+                if (current && current.us_aqi !== undefined && current.us_aqi !== null) {
+                    pending.aqi = Number(current.us_aqi);
+                }
+            } catch (e) {}
+        }
+        if (pending.weather !== null) tryFinish();
+    };
+    aqiXhr.send();
 }
 
 function playDing() {
@@ -188,6 +321,7 @@ function fetchLatestMessage() {
                             var msgBox = document.querySelector(".message");
                             msgBox.classList.add("pulse");
                             setTimeout(function () { msgBox.classList.remove("pulse"); }, 800);
+                            window.dispatchEvent(new CustomEvent("jinzhu:message", { detail: { content: currentTopMessage } }));
                         }
 
                         lastTopMessage = currentTopMessage;
@@ -204,8 +338,22 @@ updateClock();
 setInterval(updateClock, 1000);
 fetchLatestMessage();
 setInterval(fetchLatestMessage, 5000);
+(function () {
+    var cached = loadWeatherCache();
+    if (cached) {
+        cached.state = cached.state || normalizeWeather(cached);
+        renderWeather(cached);
+        syncJinzhuWeather(cached);
+    }
+})();
 fetchWeather();
-setInterval(fetchWeather, 10 * 60 * 1000);
+setInterval(fetchWeather, 25 * 60 * 1000);
+
+var lastWeatherFetchAt = Date.now();
+window.addEventListener("jinzhu:weather", function () { lastWeatherFetchAt = Date.now(); });
+document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && Date.now() - lastWeatherFetchAt > WEATHER_CACHE_MAX_AGE) fetchWeather();
+});
 
 /* 金主：輕量互動與本機狀態 */
 (function initJinzhu() {
