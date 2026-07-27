@@ -466,10 +466,37 @@
 
     function restoredPosition() {
         var bounds = getViewportBounds();
-        return clampPosition({
+        var preferred = clampPosition({
             x: bounds.minX + clamp(Number(state.positionX) * 100) / 100 * (bounds.maxX - bounds.minX),
             y: bounds.minY + clamp(Number(state.positionY) * 100) / 100 * (bounds.maxY - bounds.minY)
         });
+        return findSafeRestingPosition(preferred);
+    }
+
+    function restingPositionIsClear(position) {
+        var width = walker.offsetWidth || 116, height = walker.offsetHeight || 116;
+        var pet = { left: position.x, top: position.y, right: position.x + width, bottom: position.y + height };
+        var protectedCards = document.querySelectorAll(".clock, .weather-card, .card.message");
+        for (var i = 0; i < protectedCards.length; i++) {
+            var rect = visibleRect(protectedCards[i]);
+            if (rect.width && rect.height && overlaps(pet, rect, 10)) return false;
+        }
+        return true;
+    }
+
+    function findSafeRestingPosition(preferred) {
+        if (restingPositionIsClear(preferred)) return preferred;
+        var b = getViewportBounds(), width = walker.offsetWidth || 116, height = walker.offsetHeight || 116;
+        var candidates = [
+            { x: b.maxX, y: b.maxY }, { x: b.minX, y: b.maxY },
+            { x: b.maxX, y: b.minY }, { x: b.minX, y: b.minY },
+            { x: (b.minX + b.maxX) / 2, y: b.maxY },
+            { x: b.maxX, y: Math.max(b.minY, b.maxY - height - 18) }
+        ].map(clampPosition);
+        for (var i = 0; i < candidates.length; i++) if (restingPositionIsClear(candidates[i])) return candidates[i];
+        /* A compact viewport can leave no fully empty lane.  The bottom edge
+           is least likely to conceal text and remains within the viewport. */
+        return clampPosition({ x: b.maxX, y: b.maxY });
     }
 
     function visibleRect(element) {
@@ -1064,6 +1091,7 @@
     function startRainWatching() {
         if (!rainActive || currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy") return false;
         clearScheduler();
+        setPosition(restoredPosition(), scaledDuration(450), false);
         setStatus("rain");
         var rainDuration = debugMode ? 4000 : randomBetween(8, 15) * 1000;
         schedule(rainDuration, function () { idleFor(45, 120); }, debugMode);
