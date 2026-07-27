@@ -365,6 +365,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .jinzhu-debug-mode .jinzhu-cat:focus { outline: 2px dashed rgba(255,255,255,.75); outline-offset: 3px; }
 .jinzhu-cat:active img { transform: scale(.96); }
 .jinzhu-home.idle .jinzhu-cat img { animation: jinzhu-breathe 3.8s ease-in-out infinite; }
+.jinzhu-home.jinzhu-deep-sleep .jinzhu-cat img { animation-duration: 6.5s; opacity: .92; }
 .jinzhu-home.look-around .jinzhu-cat img { animation: jinzhu-glance 1.25s ease-in-out 2; }
 .jinzhu-home.grooming .jinzhu-cat img { animation: jinzhu-grooming .72s ease-in-out infinite; }
 .jinzhu-home.walking .jinzhu-cat img { animation: jinzhu-walk-step .58s ease-in-out infinite; }
