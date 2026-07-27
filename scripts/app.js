@@ -123,6 +123,7 @@ var WEATHER_CACHE_MAX_AGE = 15 * 60 * 1000; // 缓存超过15分钟不再当作�
 var WEATHER_REFRESH_MS = 25 * 60 * 1000;
 var weatherRequestInFlight = false;
 var weatherRefreshTimer = null;
+var weatherAqiTimeout = null;
 
 function weatherCondition(raw) {
     var code = Number(raw.code);
@@ -163,14 +164,6 @@ function standardizeWeather(raw, options) {
     };
     result.condition = weatherCondition(result);
     return result;
-}
-
-function syncJinzhuWeather(payload) {
-    var bridge = window.JinzhuBridge;
-    if (!bridge) return;
-    var rainy = payload.condition === "rain" || payload.condition === "storm";
-    if (bridge.requestRain) bridge.requestRain(rainy);
-    if (bridge.requestHeat) bridge.requestHeat(payload.condition === "hot");
 }
 
 function renderWeather(payload) {
@@ -235,7 +228,7 @@ function fetchWeather() {
         renderWeather(payload);
         saveWeatherCache(payload);
         window.dispatchEvent(new CustomEvent("jinzhu:weather", { detail: payload }));
-        syncJinzhuWeather(payload);
+        clearTimeout(weatherAqiTimeout);
         weatherRequestInFlight = false;
     }
 
@@ -272,11 +265,11 @@ function fetchWeather() {
             var cached = loadWeatherCache();
             if (cached && !cached.isStale) {
                 renderWeather(cached);
-                syncJinzhuWeather(cached);
             } else {
                 document.getElementById("weather").innerHTML = "☁️ " + WEATHER_CITY_NAME + " --°C";
                 renderWeather({ code: 3, temperature: NaN, humidity: null, aqi: null });
             }
+            clearTimeout(weatherAqiTimeout);
             weatherRequestInFlight = false;
             return; // 天气都拿不到就不用再等 AQI 了
         }
@@ -305,6 +298,13 @@ function fetchWeather() {
         if (pending.weather !== null) tryFinish();
     };
     aqiXhr.send();
+    /* AQI is optional: a captive network must never hold back weather. */
+    weatherAqiTimeout = setTimeout(function () {
+        if (pending.weather !== null && pending.aqi === undefined) {
+            pending.aqi = null;
+            tryFinish();
+        }
+    }, 8000);
 }
 
 function playDing() {
@@ -377,7 +377,6 @@ setInterval(fetchLatestMessage, 5000);
     var cached = loadWeatherCache();
     if (cached && !cached.isStale) {
         renderWeather(cached);
-        syncJinzhuWeather(cached);
     }
 })();
 function scheduleWeatherRefresh() {
