@@ -326,8 +326,7 @@
         window.dispatchEvent(new CustomEvent("jinzhu:status", { detail: { status: status } }));
     }
 
-    function say(text, persistent) {
-        prepareOverlays();
+    function updateBubblePlacement() {
         var spaceOnRight = window.innerWidth - (currentPosition.x + walker.offsetWidth);
         var bubbleWidth = Math.min(window.innerWidth - 16, window.innerWidth <= 600 ? 180 : 210);
         var spaceOnLeft = currentPosition.x;
@@ -336,6 +335,11 @@
         home.classList.toggle("bubble-right", useRight);
         home.classList.toggle("bubble-left", useLeft);
         home.classList.toggle("bubble-above", !useRight && !useLeft);
+    }
+
+    function say(text, persistent) {
+        prepareOverlays();
+        updateBubblePlacement();
         if (bubbleText) bubbleText.textContent = text;
         else bubble.textContent = text;
         bubble.classList.add("show");
@@ -457,6 +461,7 @@
             }
         }
         currentPosition = safe;
+        if (bubble.classList.contains("show")) updateBubblePlacement();
         var bounds = getViewportBounds();
         state.positionX = bounds.maxX > bounds.minX ? (safe.x - bounds.minX) / (bounds.maxX - bounds.minX) : 0;
         state.positionY = bounds.maxY > bounds.minY ? (safe.y - bounds.minY) / (bounds.maxY - bounds.minY) : 0;
