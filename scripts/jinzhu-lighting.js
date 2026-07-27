@@ -11,7 +11,16 @@
         root.setAttribute("data-weather-condition", condition);
         root.setAttribute("data-light-period", period);
     }
+    var timer = null;
+    function startTimer() {
+        clearInterval(timer);
+        timer = setInterval(function () { if (!document.hidden) apply(); }, 10 * 60 * 1000);
+    }
     window.addEventListener("jinzhu:weather", function (event) { apply(event && event.detail); });
-    setInterval(function () { apply(); }, 10 * 60 * 1000);
+    document.addEventListener("visibilitychange", function () {
+        if (document.hidden) { clearInterval(timer); timer = null; }
+        else { apply(); startTimer(); }
+    });
+    startTimer();
     apply();
 }());
