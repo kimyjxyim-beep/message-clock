@@ -215,7 +215,15 @@
         return sky;
     }
 
-    function weatherType(code) {
+    function weatherType(weather) {
+        /* Stage 2 weather service is the sole condition classifier.  Retain
+           the code fallback only for an old cached object from before Stage 2. */
+        if (weather && typeof weather === "object" && weather.condition) {
+            if (weather.condition === "storm") return "thunder";
+            if (weather.condition === "rain") return "shower";
+            return "clear";
+        }
+        var code = weather;
         code = Number(code);
         if (code >= 95 && code <= 99) return "thunder";
         if (code === 65 || code === 82) return "heavy";
@@ -258,7 +266,7 @@
         weatherData = detail;
         storage.set("JinzhuWeather", weatherData);
         var forced = forcedWeather;
-        var type = forced && debugWeatherCode(forced) !== undefined ? forced : weatherType(detail.code);
+        var type = forced && debugWeatherCode(forced) !== undefined ? forced : weatherType(detail);
         applyRain(type);
         var forcedTemperature = debugMode && isFinite(Number(params.get("jinzhuTemperature"))) ? Number(params.get("jinzhuTemperature")) : null;
         applyHeat(forcedTemperature !== null ? forcedTemperature : Number(detail.temperature));
