@@ -1562,6 +1562,15 @@
     window.addEventListener("resize", recalculatePosition);
     window.addEventListener("orientationchange", function () { setTimeout(recalculatePosition, 120); });
     window.addEventListener("scroll", recalculatePosition, { passive: true });
+    /* Dynamic anchors are measured only on layout events, never per frame. */
+    if (window.ResizeObserver) {
+        var anchorObserver = new ResizeObserver(function () { recalculatePosition(); updateClockAnchorOverlay(); });
+        [".clock", ".message", ".weather-card", ".container"].forEach(function (selector) {
+            var target = document.querySelector(selector);
+            if (target) anchorObserver.observe(target);
+        });
+    }
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { recalculatePosition(); });
     window.addEventListener("jinzhu:clock-change", function () { recalculatePosition(); updateClockAnchorOverlay(); });
     window.addEventListener("jinzhu:clock-tick", function (event) {
         var detail = event && event.detail || {};
@@ -1623,6 +1632,29 @@
         }
     }
 
+    /* The idle monitor is deliberately outside the scheduler, but it never
+       touches sprites or positions itself.  This is the scheduler's single
+       gateway for wake/sleep priority. */
+    function setExternalIdleLevel(level) {
+        if (level === "sleep") {
+            if (currentStatus !== "sleeping" && !feedingPending && !reminderActive) startSleeping();
+            return;
+        }
+        if (level === "drowsy") {
+            if (currentStatus === "idle" || currentStatus === "look-around") startSleepy();
+            return;
+        }
+        if (level === "awake") {
+            state.lastInteraction = Date.now();
+            if (currentStatus === "sleeping" || currentStatus === "sleepy") {
+                clearScheduler();
+                setStatus(Math.random() < .5 ? "look-around" : "idle");
+                schedule(randomBetween(20, 55) * 1000, chooseNextBehavior);
+            }
+            saveState();
+        }
+    }
+
     window.JinzhuBridge = {
         getStatus: function () { return currentStatus; },
         getState: function () {
@@ -1640,7 +1672,7 @@
         refreshOverlay: prepareOverlays,
         openMenu: openInteractions,
         closeMenu: closeInteractions,
-        startClockClimb: function () { state.nextClimbAllowed = 0; return startClockClimb(true); },
+        startClockClimb: function (force) { return startClockClimb(!!force); },
         startClockAnchor: function (kind) { return startClockAnchor(kind, true); },
         startClockScratch: function () { return startClockScratch(true); },
         forceMove: function () { state.nextWalkAllowed = 0; startWalking(); },
@@ -1671,7 +1703,11 @@
             } else if (!document.hidden && currentStatus === "idle") {
                 schedule(randomBetween(30, 75) * 1000, chooseNextBehavior);
             }
-        }
+        },
+        setIdleLevel: setExternalIdleLevel,
+        noteActivity: function () { setExternalIdleLevel("awake"); },
+        startMessageVisit: function (kind) { return startMessageVisit(kind || "message-sit", false); },
+        startMessagePat: function () { return startMessagePat(false); }
     };
 
     if (debugMode) {
