@@ -258,6 +258,35 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     transition: background 0.5s ease, transform 0.3s ease;
 }
 
+/* 金主輕拍留言板：比新留言的 .pulse 更輕微，只是短暫晃一下 */
+.card.message.jinzhu-msg-nudge { animation: jinzhu-msg-nudge .5s ease-in-out; }
+@keyframes jinzhu-msg-nudge {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    25% { transform: translateX(-2px) rotate(-0.4deg); }
+    75% { transform: translateX(2px) rotate(0.4deg); }
+}
+
+/* 留言板角落的淡爪印，浮在頁面上層，不插入留言板 DOM 內部 */
+.jinzhu-paw-print {
+    position: fixed;
+    width: 22px;
+    height: 22px;
+    pointer-events: none;
+    z-index: 25;
+    opacity: 0;
+    background-image: radial-gradient(circle at 50% 62%, rgba(255,255,255,.4) 0 5px, transparent 5.5px),
+        radial-gradient(circle at 32% 30%, rgba(255,255,255,.4) 0 3px, transparent 3.5px),
+        radial-gradient(circle at 50% 20%, rgba(255,255,255,.4) 0 3px, transparent 3.5px),
+        radial-gradient(circle at 68% 30%, rgba(255,255,255,.4) 0 3px, transparent 3.5px);
+    animation: jinzhu-paw-fade 4.2s ease-in-out forwards;
+}
+@keyframes jinzhu-paw-fade {
+    0% { opacity: 0; transform: scale(.8); }
+    12% { opacity: 1; transform: scale(1); }
+    78% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
 /* 金主住在兩張卡片之間，不另外加大容器 */
 .jinzhu-home {
     --jinzhu-x: 0px;
@@ -297,14 +326,14 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     -webkit-touch-callout: none;
     user-select: none;
     filter: drop-shadow(0 9px 9px rgba(0, 0, 0, .38));
-    transform: scaleX(var(--jinzhu-facing));
+    transform: scaleX(var(--jinzhu-facing)) rotate(var(--jinzhu-attn-tilt, 0deg)) scale(var(--jinzhu-attn-scale, 1));
     transition: transform .18s ease;
     pointer-events: auto;
     outline: none;
     box-shadow: none;
 }
 .jinzhu-home.on-clock .jinzhu-cat {
-    transform: scale(var(--jinzhu-perch-scale, 1)) scaleX(var(--jinzhu-facing));
+    transform: scale(var(--jinzhu-perch-scale, 1)) scaleX(var(--jinzhu-facing)) rotate(var(--jinzhu-attn-tilt, 0deg));
     transform-origin: 50% 0;
 }
 .jinzhu-cat img {
