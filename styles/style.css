@@ -275,12 +275,14 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 }
 
 /* 金主輕拍留言板：比新留言的 .pulse 更輕微，只是短暫晃一下 */
-.card.message.jinzhu-msg-nudge { animation: jinzhu-msg-nudge .5s ease-in-out; }
+.msg-item.jinzhu-msg-nudge { animation: jinzhu-msg-nudge .5s ease-in-out; }
 @keyframes jinzhu-msg-nudge {
     0%, 100% { transform: translateX(0) rotate(0); }
     25% { transform: translateX(-2px) rotate(-0.4deg); }
     75% { transform: translateX(2px) rotate(0.4deg); }
 }
+.colon.jinzhu-colon-tap { animation: jinzhu-colon-tap 1.15s ease-in-out; transform-origin: 50% 50%; }
+@keyframes jinzhu-colon-tap { 0%,100% { transform: rotate(0); } 35% { transform: rotate(-5deg) translateY(-2px); } 70% { transform: rotate(3deg); } }
 
 /* 留言板角落的淡爪印，浮在頁面上層，不插入留言板 DOM 內部 */
 .jinzhu-paw-print {
