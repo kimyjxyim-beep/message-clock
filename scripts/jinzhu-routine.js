@@ -1502,7 +1502,10 @@
             closeInteractions();
             return;
         }
-        var roll = .70;
+        /* Each click must give visible feedback; the follow-up action remains
+           varied instead of being locked to the old .70 test value. */
+        say(state.fullness < 25 ? "我有少少肚饿呀。" : "我喺度陪你呀。");
+        var roll = Math.random();
         if (tapAwayPending) {
             openInteractions();
             return;
