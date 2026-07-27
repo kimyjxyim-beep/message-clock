@@ -18,7 +18,8 @@
     function check() {
         if (document.hidden) return;
         var idleFor = Date.now() - lastActivity;
-        if (idleFor >= 8 * 60 * 1000) request("sleep");
+        if (idleFor >= 20 * 60 * 1000) request("deep-sleep");
+        else if (idleFor >= 8 * 60 * 1000) request("sleep");
         else if (idleFor >= 2 * 60 * 1000) request("drowsy");
         else request("awake");
     }
