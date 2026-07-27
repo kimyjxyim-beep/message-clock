@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>金主生活動作素材預覽</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #151922;
+            color: #f4f5f7;
+        }
+
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 24px; }
+        main { width: min(1040px, 100%); margin: 0 auto; }
+        h1 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 38px); }
+        .note { margin: 0 0 22px; color: #aeb7c8; line-height: 1.55; }
+        .preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+        .panel { border: 1px solid #343b4c; border-radius: 18px; background: #202633; padding: 16px; }
+        .panel h2 { margin: 0 0 12px; font-size: 20px; }
+        .stage {
+            position: relative;
+            min-height: 270px;
+            overflow: hidden;
+            border-radius: 14px;
+            background:
+                linear-gradient(45deg, #e8eaf0 25%, transparent 25%, transparent 75%, #e8eaf0 75%),
+                linear-gradient(45deg, #e8eaf0 25%, #f8f9fb 25%, #f8f9fb 75%, #e8eaf0 75%);
+            background-position: 0 0, 10px 10px;
+            background-size: 20px 20px;
+        }
+        .stage::after {
+            content: "";
+            position: absolute;
+            left: 12%;
+            right: 12%;
+            bottom: 30px;
+            height: 1px;
+            background: rgba(42, 48, 60, .18);
+        }
+        .sun-patch {
+            position: absolute;
+            width: 210px;
+            height: 150px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -48%);
+            border-radius: 50%;
+            background: radial-gradient(ellipse, rgba(255, 210, 91, .34), rgba(255, 225, 145, .12) 54%, transparent 73%);
+            filter: blur(3px);
+        }
+        .sprite {
+            position: absolute;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            object-fit: contain;
+            user-select: none;
+            pointer-events: none;
+        }
+        #sun-sprite { width: 216px; height: 192px; left: 50%; bottom: 22px; transform: translateX(-50%); }
+        #grass-cat { width: 216px; height: 192px; left: calc(50% - 104px); bottom: 20px; }
+        #grass-sprite { width: 96px; height: 106px; left: calc(50% + 50px); bottom: 27px; }
+        .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        button {
+            border: 1px solid #4c566e;
+            border-radius: 999px;
+            background: #2b3343;
+            color: inherit;
+            padding: 8px 13px;
+            font: inherit;
+            cursor: pointer;
+        }
+        button:hover { background: #364055; }
+        .reference {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 22px 0 12px;
+            color: #c5ccda;
+        }
+        .reference img {
+            width: 90px;
+            height: 80px;
+            object-fit: contain;
+            image-rendering: pixelated;
+            background: #f1f2f5;
+            border-radius: 10px;
+        }
+        .frame-section { margin-top: 20px; }
+        .frame-section h2 { margin: 0 0 10px; }
+        .frames { display: grid; grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); gap: 10px; }
+        figure { margin: 0; padding: 9px; border-radius: 12px; background: #202633; border: 1px solid #343b4c; }
+        figure img {
+            display: block;
+            width: 100%;
+            aspect-ratio: 9 / 8;
+            object-fit: contain;
+            image-rendering: pixelated;
+            background:
+                linear-gradient(45deg, #dfe2e8 25%, transparent 25%, transparent 75%, #dfe2e8 75%),
+                linear-gradient(45deg, #dfe2e8 25%, #f5f6f8 25%, #f5f6f8 75%, #dfe2e8 75%);
+            background-position: 0 0, 8px 8px;
+            background-size: 16px 16px;
+            border-radius: 8px;
+        }
+        figcaption { margin-top: 7px; color: #b9c1d0; font-size: 12px; text-align: center; }
+
+        @media (max-width: 720px) {
+            body { padding: 14px; }
+            .preview-grid { grid-template-columns: 1fr; }
+            .stage { min-height: 235px; }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1>金主生活動作素材預覽</h1>
+    <p class="note">只作素材肉眼驗收，未接入正式日常行為。棋盤格代表透明背景。</p>
+
+    <div class="reference">
+        <img src="assets/jinzhu/walk-1.png" alt="原始 walk-1 風格基準">
+        <span>風格對照：原始 <code>walk-1.png</code></span>
+    </div>
+
+    <section class="preview-grid">
+        <article class="panel">
+            <h2>曬太陽：四腳朝天、左右碌</h2>
+            <div class="stage">
+                <span class="sun-patch" aria-hidden="true"></span>
+                <img class="sprite" id="sun-sprite" alt="金主翻肚曬太陽">
+            </div>
+            <div class="controls">
+                <button type="button" data-replay="sun">重新播放</button>
+                <button type="button" data-pause="sun">暫停／繼續</button>
+            </div>
+        </article>
+
+        <article class="panel">
+            <h2>食貓草：聞、咬、咀嚼、舔嘴</h2>
+            <div class="stage">
+                <img class="sprite" id="grass-cat" alt="金主食貓草">
+                <img class="sprite" id="grass-sprite" alt="直接生長在頁面的貓草">
+            </div>
+            <div class="controls">
+                <button type="button" data-replay="grass">重新播放</button>
+                <button type="button" data-pause="grass">暫停／繼續</button>
+            </div>
+        </article>
+    </section>
+
+    <section class="frame-section">
+        <h2>曬太陽逐幀</h2>
+        <div class="frames" id="sun-frames"></div>
+    </section>
+
+    <section class="frame-section">
+        <h2>食貓草逐幀</h2>
+        <div class="frames" id="grass-cat-frames"></div>
+    </section>
+
+    <section class="frame-section">
+        <h2>貓草逐幀</h2>
+        <div class="frames" id="grass-frames"></div>
+    </section>
+</main>
+
+<script>
+    (function () {
+        "use strict";
+        var base = "assets/jinzhu/animations/lifestyle-preview/";
+        var sunFrames = [1, 2, 3, 4, 5, 6].map(function (n) {
+            return base + "sunbathe/sunbathe-0" + n + ".png";
+        });
+        var catFrames = [1, 2, 3, 4, 5, 6].map(function (n) {
+            return base + "cat-grass/cat/cat-grass-cat-0" + n + ".png";
+        });
+        var grassFrames = [1, 2, 3].map(function (n) {
+            return base + "cat-grass/grass/cat-grass-0" + n + ".png";
+        });
+
+        function addFrames(targetId, frames, prefix) {
+            var target = document.getElementById(targetId);
+            frames.forEach(function (src, index) {
+                var figure = document.createElement("figure");
+                figure.innerHTML = "<img alt=\"" + prefix + " " + (index + 1) + "\" src=\"" + src + "\"><figcaption>" + prefix + "-" + String(index + 1).padStart(2, "0") + "</figcaption>";
+                target.appendChild(figure);
+            });
+        }
+
+        addFrames("sun-frames", sunFrames, "sunbathe");
+        addFrames("grass-cat-frames", catFrames, "cat-grass-cat");
+        addFrames("grass-frames", grassFrames, "cat-grass");
+
+        var players = {};
+
+        function sequencePlayer(name, steps, render) {
+            var state = { index: 0, timer: null, paused: false };
+            function tick() {
+                if (state.paused) return;
+                var step = steps[state.index];
+                render(step);
+                state.index = (state.index + 1) % steps.length;
+                state.timer = setTimeout(tick, step.duration);
+            }
+            players[name] = {
+                replay: function () {
+                    clearTimeout(state.timer);
+                    state.index = 0;
+                    state.paused = false;
+                    tick();
+                },
+                toggle: function () {
+                    state.paused = !state.paused;
+                    clearTimeout(state.timer);
+                    if (!state.paused) tick();
+                }
+            };
+            tick();
+        }
+
+        var sunSprite = document.getElementById("sun-sprite");
+        sequencePlayer("sun", [
+            { frame: 0, duration: 850 },
+            { frame: 1, duration: 850 },
+            { frame: 2, duration: 850 },
+            { frame: 3, duration: 1150 },
+            { frame: 4, duration: 1150 },
+            { frame: 3, duration: 1150 },
+            { frame: 4, duration: 1150 },
+            { frame: 5, duration: 950 }
+        ], function (step) {
+            sunSprite.src = sunFrames[step.frame];
+        });
+
+        var grassCat = document.getElementById("grass-cat");
+        var grassSprite = document.getElementById("grass-sprite");
+        sequencePlayer("grass", [
+            { cat: 0, grass: 0, duration: 900 },
+            { cat: 1, grass: 1, duration: 900 },
+            { cat: 2, grass: 1, duration: 480 },
+            { cat: 3, grass: 2, duration: 480 },
+            { cat: 2, grass: 1, duration: 480 },
+            { cat: 3, grass: 2, duration: 480 },
+            { cat: 4, grass: 1, duration: 800 },
+            { cat: 5, grass: 1, duration: 1100 }
+        ], function (step) {
+            grassCat.src = catFrames[step.cat];
+            grassSprite.src = grassFrames[step.grass];
+        });
+
+        document.addEventListener("click", function (event) {
+            var replay = event.target.getAttribute("data-replay");
+            var pause = event.target.getAttribute("data-pause");
+            if (replay && players[replay]) players[replay].replay();
+            if (pause && players[pause]) players[pause].toggle();
+        });
+    }());
+</script>
+</body>
+</html>

@@ -68,6 +68,7 @@
     var introWalkPending = false;
     var pendingEatingDuration = 10000;
     var rainActive = false;
+    var latestWeather = null;
     var reminderActive = false;
     var ownerMood = "normal";
     var companionMode = "normal";
@@ -88,7 +89,10 @@
         "climbing", "perched", "climbing-down", "clock-perch", "clock-hook", "clock-nap", "clock-peek", "colon-sit",
         "clock-scratching", "clock-flip-pull",
         "message-sit", "message-peek", "message-paw",
-        "turn", "stretch", "crouch", "side-sleep", "look-clock", "jump-clock", "lie-clock", "card-peek", "paw-rest", "paw-tap"
+        "turn", "stretch", "crouch", "side-sleep", "look-clock", "jump-clock", "scratch-digits", "lie-clock", "card-peek",
+        "paw-rest", "paw-rest-message", "paw-rest-weather", "paw-rest-release", "paw-tap",
+        "sunbathe-prepare", "sunbathe-rest", "sunbathe-finish",
+        "grass-notice", "grass-sniff", "grass-bite", "grass-chew", "grass-finish"
     ];
     var sprites = {
         idle: ["idle-1.png", "idle-2.png", "idle-3.png", "idle-5.png", "idle-2.png"],
@@ -117,20 +121,50 @@
         // 留言板互动重用现有素材，暂不需要新画帧
         "message-sit": ["perch-1.png", "perch-2.png"],
         "message-peek": ["clock-peek-1.png"],
-        "message-paw": ["climb-2.png", "climb-3.png", "climb-2.png"]
+        "message-paw": ["climb-2.png", "climb-3.png", "climb-2.png"],
+        "sunbathe-prepare": [
+            "animations/lifestyle-preview/sunbathe/sunbathe-01.png",
+            "animations/lifestyle-preview/sunbathe/sunbathe-02.png",
+            "animations/lifestyle-preview/sunbathe/sunbathe-03.png"
+        ],
+        "sunbathe-rest": [
+            "animations/lifestyle-preview/sunbathe/sunbathe-04.png",
+            "animations/lifestyle-preview/sunbathe/sunbathe-05.png"
+        ],
+        "sunbathe-finish": [
+            "animations/lifestyle-preview/sunbathe/sunbathe-05.png",
+            "animations/lifestyle-preview/sunbathe/sunbathe-03.png",
+            "animations/lifestyle-preview/sunbathe/sunbathe-02.png",
+            "animations/lifestyle-preview/sunbathe/sunbathe-06.png"
+        ],
+        "grass-notice": ["animations/lifestyle-preview/cat-grass/cat/cat-grass-cat-01.png"],
+        "grass-sniff": ["animations/lifestyle-preview/cat-grass/cat/cat-grass-cat-02.png"],
+        "grass-bite": [
+            "animations/lifestyle-preview/cat-grass/cat/cat-grass-cat-03.png",
+            "animations/lifestyle-preview/cat-grass/cat/cat-grass-cat-04.png"
+        ],
+        "grass-chew": [
+            "animations/lifestyle-preview/cat-grass/cat/cat-grass-cat-05.png",
+            "animations/lifestyle-preview/cat-grass/cat/cat-grass-cat-04.png"
+        ],
+        "grass-finish": ["animations/lifestyle-preview/cat-grass/cat/cat-grass-cat-06.png"]
     };
     /* New actions deliberately live beside—not inside—the legacy sprite set. */
     var newActionConfig = {
         turn: { frames: ["animations/new-actions/free-roam/turn-01.png", "animations/new-actions/free-roam/turn-02.png", "animations/new-actions/free-roam/turn-03.png", "animations/new-actions/free-roam/turn-04.png"], frame: 180, cooldown: 22000 },
         stretch: { frames: ["animations/new-actions/stretch/stretch-01.png", "animations/new-actions/stretch/stretch-02.png", "animations/new-actions/stretch/stretch-03.png", "animations/new-actions/stretch/stretch-04.png"], frame: 240, cooldown: 90000 },
         crouch: { frames: ["animations/new-actions/rest/crouch-01.png", "animations/new-actions/rest/crouch-02.png", "animations/new-actions/rest/crouch-03.png", "animations/new-actions/rest/crouch-04.png"], frame: 210, cooldown: 70000 },
-        "side-sleep": { frames: ["animations/new-actions/rest/side-sleep-01.png", "animations/new-actions/rest/side-sleep-02.png", "animations/new-actions/rest/side-sleep-03.png", "animations/new-actions/rest/side-sleep-04.png"], frame: 520, cooldown: 150000 },
-        "look-clock": { frames: ["animations/new-actions/clock/look-clock-01.png", "animations/new-actions/clock/look-clock-02.png", "animations/new-actions/clock/look-clock-03.png", "animations/new-actions/clock/look-clock-04.png"], frame: 280, cooldown: 90000 },
-        "jump-clock": { frames: ["animations/new-actions/clock/jump-clock-01.png", "animations/new-actions/clock/jump-clock-02.png", "animations/new-actions/clock/jump-clock-03.png", "animations/new-actions/clock/jump-clock-04.png"], frame: 180, cooldown: 120000 },
-        "lie-clock": { frames: ["animations/new-actions/clock/lie-clock-01.png", "animations/new-actions/clock/lie-clock-02.png", "animations/new-actions/clock/lie-clock-03.png", "animations/new-actions/clock/lie-clock-04.png"], frame: 520, cooldown: 150000 },
-        "card-peek": { frames: ["animations/new-actions/card-peek/peek-01.png", "animations/new-actions/card-peek/peek-02.png", "animations/new-actions/card-peek/peek-03.png", "animations/new-actions/card-peek/peek-04.png"], frame: 360, cooldown: 100000 },
-        "paw-rest": { frames: ["animations/new-actions/card-paw/paw-rest-01.png", "animations/new-actions/card-paw/paw-rest-02.png", "animations/new-actions/card-paw/paw-rest-03.png", "animations/new-actions/card-paw/paw-rest-04.png"], frame: 250, cooldown: 90000 },
-        "paw-tap": { frames: ["animations/new-actions/card-paw/paw-tap-01.png", "animations/new-actions/card-paw/paw-tap-02.png", "animations/new-actions/card-paw/paw-tap-03.png", "animations/new-actions/card-paw/paw-tap-04.png"], frame: 150, cooldown: 90000 }
+        "side-sleep": { frames: ["animations/new-actions/normalized/side-sleep-01.png", "animations/new-actions/normalized/side-sleep-02.png", "animations/new-actions/normalized/side-sleep-03.png", "animations/new-actions/normalized/side-sleep-04.png"], frame: 420, hold: 2200, cooldown: 150000 },
+        "look-clock": { frames: ["animations/new-actions/normalized/look-clock-01.png", "animations/new-actions/normalized/look-clock-02.png", "animations/new-actions/normalized/look-clock-03.png", "animations/new-actions/normalized/look-clock-04.png"], frame: 320, hold: 2600, cooldown: 90000 },
+        "jump-clock": { frames: ["animations/new-actions/normalized/paw-grip-01.png", "animations/new-actions/normalized/clock-prone-01.png", "animations/new-actions/normalized/paw-grip-02.png", "animations/new-actions/normalized/clock-prone-02.png"], frame: 220, cooldown: 120000 },
+        "scratch-digits": { frames: ["animations/new-actions/digit-scratch/digit-scratch-01.png", "animations/new-actions/digit-scratch/digit-scratch-02.png", "animations/new-actions/digit-scratch/digit-scratch-03.png", "animations/new-actions/digit-scratch/digit-scratch-04.png", "animations/new-actions/digit-scratch/digit-scratch-05.png", "animations/new-actions/digit-scratch/digit-scratch-02.png", "animations/new-actions/digit-scratch/digit-scratch-03.png", "animations/new-actions/digit-scratch/digit-scratch-04.png", "animations/new-actions/digit-scratch/digit-scratch-05.png", "animations/new-actions/digit-scratch/digit-scratch-06.png"], frame: 150, hold: 700, cooldown: 120000 },
+        "lie-clock": { frames: ["animations/new-actions/normalized/clock-prone-01.png", "animations/new-actions/normalized/clock-prone-02.png", "animations/new-actions/normalized/clock-prone-03.png", "animations/new-actions/normalized/clock-prone-04.png"], frame: 380, hold: 3200, cooldown: 150000 },
+        "card-peek": { frames: ["animations/new-actions/normalized/card-peek-01.png", "animations/new-actions/normalized/card-peek-02.png", "animations/new-actions/normalized/card-peek-03.png", "animations/new-actions/normalized/card-peek-04.png"], frame: 260, hold: 1500, cooldown: 100000 },
+        "paw-rest": { frames: ["animations/new-actions/normalized/paw-grip-01.png", "animations/new-actions/normalized/paw-grip-02.png", "animations/new-actions/normalized/paw-grip-03.png", "animations/new-actions/normalized/paw-grip-03.png"], frame: 220, hold: 2200, cooldown: 90000 },
+        "paw-rest-message": { frames: ["animations/new-actions/normalized/paw-grip-01.png", "animations/new-actions/normalized/paw-grip-02.png", "animations/new-actions/normalized/paw-grip-03.png", "animations/new-actions/normalized/paw-grip-03.png"], frame: 220, hold: 2200, cooldown: 90000 },
+        "paw-rest-weather": { frames: ["animations/new-actions/normalized/paw-grip-01.png", "animations/new-actions/normalized/paw-grip-02.png", "animations/new-actions/normalized/paw-grip-03.png", "animations/new-actions/normalized/paw-grip-03.png"], frame: 220, hold: 2200, cooldown: 90000 },
+        "paw-rest-release": { frames: ["animations/new-actions/normalized/paw-grip-03.png", "animations/new-actions/normalized/paw-grip-02.png", "animations/new-actions/normalized/paw-grip-01.png", "animations/new-actions/normalized/paw-grip-04.png"], frame: 180, hold: 0, cooldown: 0 },
+        "paw-tap": { frames: ["animations/new-actions/normalized/paw-tap-01.png", "animations/new-actions/normalized/paw-tap-02.png", "animations/new-actions/normalized/paw-tap-03.png", "animations/new-actions/normalized/paw-tap-04.png"], frame: 160, hold: 600, cooldown: 90000 }
     };
     Object.keys(newActionConfig).forEach(function (name) { sprites[name] = newActionConfig[name].frames; });
     var spriteSpeeds = {
@@ -139,8 +173,18 @@
         climbing: 620, perched: 2200, "climbing-down": 680,
         "clock-perch": 2200, "clock-hook": 750, "clock-nap": 3200, "clock-peek": 2000, "colon-sit": 1800,
         "clock-scratching": 360, "clock-flip-pull": 145,
-        "message-sit": 2200, "message-peek": 2000, "message-paw": 380
+        "message-sit": 2200, "message-peek": 2000, "message-paw": 380,
+        "sunbathe-prepare": 430, "sunbathe-rest": 1250, "sunbathe-finish": 420,
+        "grass-notice": 700, "grass-sniff": 700, "grass-bite": 360, "grass-chew": 430, "grass-finish": 700
     };
+    var finiteSpriteStatuses = {
+        "sunbathe-prepare": true,
+        "sunbathe-finish": true,
+        "grass-notice": true,
+        "grass-sniff": true,
+        "grass-finish": true
+    };
+    Object.keys(newActionConfig).forEach(function (name) { spriteSpeeds[name] = newActionConfig[name].frame; });
     var now = Date.now();
     var state = {
         mood: 72,
@@ -150,6 +194,12 @@
         lastInteraction: now,
         lastUpdated: now,
         lastFed: 0,
+        lastSunbatheDay: "",
+        lastCatGrassDay: "",
+        sunbathePlanDay: "",
+        sunbathePlanMinute: 0,
+        lastRainStoppedAt: 0,
+        nextLifestyleAllowed: now,
         nextWalkAllowed: now,
         nextClimbAllowed: now,
         nextScratchAllowed: now,
@@ -199,7 +249,10 @@
         state.fullness = Number(params.get("jinzhuFullness"));
     }
 
-    (lowPowerDevice ? ["idle", "walking"] : Object.keys(sprites)).forEach(function (name) {
+    var preloadSpriteNames = lowPowerDevice
+        ? ["idle", "walking", "sunbathe-prepare", "sunbathe-rest", "sunbathe-finish", "grass-notice", "grass-sniff", "grass-bite", "grass-chew", "grass-finish"]
+        : Object.keys(sprites);
+    preloadSpriteNames.forEach(function (name) {
         sprites[name].forEach(function (filename) {
             var preload = new Image();
             preload.src = spriteBase + filename;
@@ -233,6 +286,7 @@
     function spriteDelay(status) {
         var delay = spriteSpeeds[status] || 800;
         if (!compactViewport()) return delay;
+        if (/^(sunbathe-|grass-)/.test(status)) return delay;
         /* Mobile Safari can swap several PNG frames in the same paint cycle.
            Keep the movement legible instead of treating the cat like a GIF. */
         if (status === "tap-running") return 135;
@@ -304,7 +358,20 @@
         var index = 0;
         catImage.src = spriteBase + frames[0];
         if (document.hidden || reduceMotion.matches || frames.length < 2) return;
-        if (simpleMotion && status !== "walking" && status !== "tap-running" && status !== "climbing" && status !== "climbing-down" && status !== "eating" && status !== "clock-scratching" && status !== "clock-flip-pull") return;
+        if (newActionConfig[status] || finiteSpriteStatuses[status]) {
+            spriteTimer = setInterval(function () {
+                index++;
+                if (index >= frames.length) {
+                    clearInterval(spriteTimer);
+                    spriteTimer = null;
+                    catImage.src = spriteBase + frames[frames.length - 1];
+                    return;
+                }
+                catImage.src = spriteBase + frames[index];
+            }, spriteDelay(status));
+            return;
+        }
+        if (simpleMotion && !newActionConfig[status] && status !== "walking" && status !== "tap-running" && status !== "climbing" && status !== "climbing-down" && status !== "eating" && status !== "clock-scratching" && status !== "clock-flip-pull") return;
         if (status === "eating") {
             var eatingStep = Math.max(900, (pendingEatingDuration - 2000) / 4);
             spriteTimer = setInterval(function () {
@@ -1095,23 +1162,877 @@
         });
     }
 
-    function newActionPoint(name) {
-        if (name === "look-clock" || name === "jump-clock" || name === "lie-clock") return pointNear(".clock", Math.random() < .5 ? "left" : "right") || currentPosition;
-        if (name === "card-peek" || name === "paw-rest" || name === "paw-tap") { var anchor = messageAnchorPoint(name === "card-peek" ? "message-peek" : "message-paw"); return anchor ? anchor.point : currentPosition; }
-        return randomRoamingPosition();
+    var activeNewActionName = "";
+    var activeNewActionHost = null;
+    var lifestyleAnchor = null;
+    var lifestylePhase = "";
+    var lifestyleSunPatch = null;
+    var lifestyleGrassLayer = null;
+    var lifestyleGrassImage = null;
+    var lifestyleTimers = [];
+    var activeClockSide = "left";
+    var actionMotionFrame = null;
+    var actionMotionGeneration = 0;
+    var activeTappedCard = null;
+    var clockTapTimer = null;
+    var activeCardGripKind = "";
+    var activeCardGripSide = "left";
+    var activeGripTarget = null;
+    var cardGripTimer = null;
+    var activeScratchDigit = null;
+    var scratchDigitTimer = null;
+    var scratchEffectTimers = [];
+    var scratchDebrisNodes = [];
+
+    function cancelActionMotion() {
+        actionMotionGeneration++;
+        if (actionMotionFrame !== null) {
+            if (window.cancelAnimationFrame) window.cancelAnimationFrame(actionMotionFrame);
+            else clearTimeout(actionMotionFrame);
+            actionMotionFrame = null;
+        }
     }
+
+    function removeLifestyleNode(node) {
+        if (node && node.parentNode) node.parentNode.removeChild(node);
+    }
+
+    function clearLifestyleLayers() {
+        lifestyleTimers.forEach(clearTimeout);
+        lifestyleTimers = [];
+        removeLifestyleNode(lifestyleSunPatch);
+        removeLifestyleNode(lifestyleGrassLayer);
+        lifestyleSunPatch = null;
+        lifestyleGrassLayer = null;
+        lifestyleGrassImage = null;
+        lifestyleAnchor = null;
+        lifestylePhase = "";
+        home.classList.remove("jinzhu-lifestyle-action", "jinzhu-sunbathing", "jinzhu-eating-grass");
+    }
+
+    function clearNewActionLayers() {
+        cancelActionMotion();
+        clearLifestyleLayers();
+        activeNewActionName = "";
+        home.classList.remove("jinzhu-special-action", "jinzhu-real-clock-action", "jinzhu-real-card-peek", "jinzhu-real-card-grip");
+        home.style.removeProperty("--jinzhu-action-scale");
+        if (activeNewActionHost) activeNewActionHost.classList.remove("jinzhu-real-peek-host");
+        if (activeNewActionHost) activeNewActionHost.classList.remove("jinzhu-real-grip-host");
+        clearTimeout(clockTapTimer);
+        clockTapTimer = null;
+        if (activeTappedCard) activeTappedCard.classList.remove("jinzhu-clock-tapped");
+        activeTappedCard = null;
+        clearTimeout(cardGripTimer);
+        cardGripTimer = null;
+        if (activeGripTarget) activeGripTarget.classList.remove("jinzhu-card-gripped");
+        activeGripTarget = null;
+        activeCardGripKind = "";
+        clearTimeout(scratchDigitTimer);
+        scratchDigitTimer = null;
+        scratchEffectTimers.forEach(clearTimeout);
+        scratchEffectTimers = [];
+        if (activeScratchDigit) activeScratchDigit.classList.remove("jinzhu-digit-scratched");
+        activeScratchDigit = null;
+        scratchDebrisNodes.forEach(function (node) {
+            if (node.parentNode) node.parentNode.removeChild(node);
+        });
+        scratchDebrisNodes = [];
+        activeNewActionHost = null;
+    }
+
+    function isCardGripAction(name) {
+        return name === "paw-rest" || name === "paw-rest-message" || name === "paw-rest-weather";
+    }
+
+    function cardGripElement(kind) {
+        return kind === "weather" ? document.querySelector(".weather-card") : messageBoardEl();
+    }
+
+    function chooseCardGripKind() {
+        var catX = currentPosition.x + (walker.offsetWidth || 116) / 2;
+        var catY = currentPosition.y + (walker.offsetHeight || 116) / 2;
+        var choices = ["message", "weather"].map(function (kind) {
+            var element = cardGripElement(kind);
+            if (!element) return null;
+            var rect = element.getBoundingClientRect();
+            return {
+                kind: kind,
+                distance: Math.hypot(catX - (rect.left + rect.width / 2), catY - (rect.top + rect.height / 2))
+            };
+        }).filter(Boolean);
+        choices.sort(function (a, b) { return a.distance - b.distance; });
+        return choices.length ? choices[0].kind : "";
+    }
+
+    function chooseCardGripSide(element) {
+        var rect = element.getBoundingClientRect();
+        var catX = currentPosition.x + (walker.offsetWidth || 116) / 2;
+        return Math.abs(catX - rect.left) <= Math.abs(catX - rect.right) ? "left" : "right";
+    }
+
+    function cardGripGeometry(kind, side) {
+        var element = cardGripElement(kind);
+        if (!element) return null;
+        var rect = element.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+        var w = walker.offsetWidth || 116;
+        var h = walker.offsetHeight || 116;
+        var contactY = rect.top + Math.min(rect.height * .26, 50) - h * .50;
+        return {
+            element: element,
+            rect: rect,
+            approach: clampPosition({
+                x: side === "left" ? rect.left - w * 1.08 : rect.right + w * .08,
+                y: rect.bottom - h * .72
+            }),
+            grip: clampPosition({
+                x: side === "left" ? rect.left - w * .84 : rect.right - w * .16,
+                y: contactY
+            })
+        };
+    }
+
+    function clockInteractionGeometry(side) {
+        var clock = document.querySelector(".clock");
+        var card = document.getElementById(side === "right" ? "minute-card" : "hour-card") ||
+            document.querySelector(".clock .flip-card");
+        if (!clock || !card) return null;
+        var clockRect = visibleRect(clock);
+        var rect = card.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+        var w = walker.offsetWidth || 116;
+        var h = walker.offsetHeight || 116;
+        return {
+            card: card,
+            rect: rect,
+            clockRect: clockRect,
+            approach: clampPosition({
+                x: side === "left" ? rect.left - w * .92 : rect.right - w * .08,
+                y: rect.bottom - h * .72
+            }),
+            look: clampPosition({
+                x: side === "left" ? clockRect.left - w * .86 : clockRect.right - w * .14,
+                y: clockRect.bottom - h * .72
+            }),
+            edge: clampPosition({
+                x: side === "left" ? rect.left - w * .84 : rect.right - w * .16,
+                y: rect.top + Math.min(rect.height * .28, 54) - h * .50
+            }),
+            top: clampPosition({
+                x: rect.left + (rect.width - w) / 2,
+                y: rect.top - h * .70
+            })
+        };
+    }
+
+    function digitScratchGeometry(side) {
+        var card = document.getElementById(side === "right" ? "minute-card" : "hour-card");
+        if (!card) return null;
+        var digit = card.querySelector(".leaf.front .num");
+        var clip = digit && digit.parentElement;
+        if (!digit || !clip || !digit.firstChild) return null;
+        var range = document.createRange();
+        range.selectNodeContents(digit);
+        var textRect = range.getBoundingClientRect();
+        var clipRect = clip.getBoundingClientRect();
+        range.detach && range.detach();
+        var visible = {
+            left: Math.max(textRect.left, clipRect.left),
+            top: Math.max(textRect.top, clipRect.top),
+            right: Math.min(textRect.right, clipRect.right),
+            bottom: Math.min(textRect.bottom, clipRect.bottom)
+        };
+        visible.width = Math.max(0, visible.right - visible.left);
+        visible.height = Math.max(0, visible.bottom - visible.top);
+        if (!visible.width || !visible.height) return null;
+        var w = walker.offsetWidth || 116;
+        var h = walker.offsetHeight || 116;
+        var contact = {
+            x: side === "left" ? visible.left + Math.min(10, visible.width * .10) : visible.right - Math.min(10, visible.width * .10),
+            y: visible.top + visible.height * .64
+        };
+        return {
+            card: card,
+            digit: digit,
+            visible: visible,
+            contact: contact,
+            approach: clampPosition({
+                x: side === "left" ? card.getBoundingClientRect().left - w * .92 : card.getBoundingClientRect().right - w * .08,
+                y: card.getBoundingClientRect().bottom - h * .72
+            }),
+            scratch: clampPosition({
+                x: side === "left" ? contact.x - w * .84 : contact.x - w * .16,
+                y: contact.y - h * .64
+            })
+        };
+    }
+
+    function cardPeekGeometry() {
+        var message = messageBoardEl();
+        if (!message) return null;
+        var rect = message.getBoundingClientRect();
+        var w = walker.offsetWidth || 116;
+        var h = walker.offsetHeight || 116;
+        var y = rect.top + Math.min(rect.height * .24, 62) - h * .42;
+        return {
+            rect: rect,
+            hidden: clampPosition({ x: rect.right - w * .94, y: y }),
+            peek: clampPosition({ x: rect.right - w * .58, y: y })
+        };
+    }
+
+    function newActionPoint(name) {
+        if (name === "sunbathe" || name === "cat-grass") {
+            return lifestylePhase === "approach" ? clampPosition(currentPosition) : lifestyleTargetPoint();
+        }
+        if (name === "card-peek") {
+            var cardGeometry = cardPeekGeometry();
+            return cardGeometry ? cardGeometry.peek : currentPosition;
+        }
+        if (isCardGripAction(name)) {
+            var gripGeometry = cardGripGeometry(activeCardGripKind, activeCardGripSide);
+            return gripGeometry ? gripGeometry.grip : currentPosition;
+        }
+        if (name === "look-clock" || name === "jump-clock" || name === "scratch-digits" || name === "lie-clock" || name === "paw-tap") {
+            if (name === "scratch-digits") {
+                var digitGeometry = digitScratchGeometry(activeClockSide);
+                return digitGeometry ? digitGeometry.scratch : currentPosition;
+            }
+            var clockGeometry = clockInteractionGeometry(activeClockSide);
+            if (!clockGeometry) return currentPosition;
+            if (name === "look-clock") return clockGeometry.look;
+            if (name === "paw-tap") return clockGeometry.edge;
+            return clockGeometry.top;
+        }
+        return currentPosition;
+    }
+
+    function prepareNewActionLayers(name) {
+        var gripKind = activeCardGripKind;
+        var gripSide = activeCardGripSide;
+        clearNewActionLayers();
+        if (isCardGripAction(name)) {
+            activeCardGripKind = gripKind;
+            activeCardGripSide = gripSide;
+        }
+        activeNewActionName = name;
+        home.classList.add("jinzhu-special-action");
+        if (name === "card-peek") {
+            activeNewActionHost = messageBoardEl();
+            if (activeNewActionHost) activeNewActionHost.classList.add("jinzhu-real-peek-host");
+            home.classList.add("jinzhu-real-card-peek");
+            home.style.setProperty("--jinzhu-action-scale", ".98");
+        } else if (isCardGripAction(name)) {
+            activeNewActionHost = cardGripElement(activeCardGripKind);
+            if (activeNewActionHost) activeNewActionHost.classList.add("jinzhu-real-grip-host");
+            home.classList.add("jinzhu-real-card-grip");
+            home.style.setProperty("--jinzhu-action-scale", "1.02");
+        } else if (name === "look-clock" || name === "jump-clock" || name === "scratch-digits" || name === "lie-clock" || name === "paw-tap") {
+            home.classList.add("jinzhu-real-clock-action");
+            home.style.setProperty("--jinzhu-action-scale", "1.02");
+        }
+    }
+
+    function finishNewAction() {
+        clearNewActionLayers();
+        idleFor(12, 35);
+    }
+
+    function lifestyleDayKey(date) {
+        return [date.getFullYear(), ("0" + (date.getMonth() + 1)).slice(-2), ("0" + date.getDate()).slice(-2)].join("-");
+    }
+
+    function lifestyleMinute(date) {
+        return date.getHours() * 60 + date.getMinutes();
+    }
+
+    function weatherIsRainy(weather) {
+        return !!weather && (weather.condition === "rain" || weather.condition === "storm" || Number(weather.rain) > 0 || Number(weather.precipitation) > 0);
+    }
+
+    function sunnyMorningWeather() {
+        if (!latestWeather || !latestWeather.isDay || weatherIsRainy(latestWeather) || rainActive) return false;
+        if (latestWeather.condition === "clear") return true;
+        return latestWeather.condition === "cloudy" && Number(latestWeather.code) >= 0 && Number(latestWeather.code) <= 3;
+    }
+
+    function lifestyleBusy() {
+        return feedingPending || reminderActive || climbing || perched || clockScratchActive ||
+            !!clockAnchorActive || !!messageAnchorActive || !!activeNewActionName ||
+            ["sleeping", "sleepy", "eating", "happy", "rain", "heat", "fan", "grooming", "climbing", "climbing-down"].indexOf(currentStatus) >= 0;
+    }
+
+    function lifestylePositionIsClear(position, kind) {
+        var width = walker.offsetWidth || 116;
+        var height = walker.offsetHeight || 116;
+        var extraRight = kind === "cat-grass" ? Math.min(78, width * .72) : 0;
+        var area = {
+            left: position.x - 10,
+            top: position.y + 4,
+            right: position.x + width + extraRight,
+            bottom: position.y + height + 4
+        };
+        var protectedCards = document.querySelectorAll(".clock, .weather-card, .card.message");
+        for (var i = 0; i < protectedCards.length; i++) {
+            var rect = visibleRect(protectedCards[i]);
+            if (rect.width && rect.height && overlaps(area, rect, 12)) return false;
+        }
+        return true;
+    }
+
+    function findLifestylePosition(kind) {
+        var bounds = getViewportBounds();
+        var yRange = bounds.maxY - bounds.minY;
+        var minY = bounds.minY + yRange * (kind === "cat-grass" ? .48 : .12);
+        var maxY = bounds.minY + yRange * (kind === "cat-grass" ? .92 : .82);
+        var maxX = kind === "cat-grass" ? Math.max(bounds.minX, bounds.maxX - 56) : bounds.maxX;
+        for (var i = 0; i < 36; i++) {
+            var candidate = clampPosition({
+                x: randomBetween(bounds.minX, maxX),
+                y: randomBetween(minY, maxY)
+            });
+            if (lifestylePositionIsClear(candidate, kind)) return candidate;
+        }
+        var current = clampPosition(currentPosition);
+        if (lifestylePositionIsClear(current, kind)) return current;
+        return clampPosition({
+            x: randomBetween(bounds.minX, maxX),
+            y: randomBetween(bounds.minY, bounds.maxY)
+        });
+    }
+
+    function rememberLifestyleAnchor(point, kind) {
+        var bounds = getViewportBounds();
+        lifestyleAnchor = {
+            kind: kind,
+            x: bounds.maxX > bounds.minX ? (point.x - bounds.minX) / (bounds.maxX - bounds.minX) : .5,
+            y: bounds.maxY > bounds.minY ? (point.y - bounds.minY) / (bounds.maxY - bounds.minY) : .6
+        };
+    }
+
+    function lifestyleTargetPoint() {
+        if (!lifestyleAnchor) return clampPosition(currentPosition);
+        var bounds = getViewportBounds();
+        return clampPosition({
+            x: bounds.minX + lifestyleAnchor.x * (bounds.maxX - bounds.minX),
+            y: bounds.minY + lifestyleAnchor.y * (bounds.maxY - bounds.minY)
+        });
+    }
+
+    function positionLifestyleLayers() {
+        if (!lifestyleAnchor) return;
+        var point = lifestyleTargetPoint();
+        var width = walker.offsetWidth || 116;
+        var height = walker.offsetHeight || 116;
+        if (lifestyleSunPatch) {
+            lifestyleSunPatch.style.left = Math.round(point.x - width * .38) + "px";
+            lifestyleSunPatch.style.top = Math.round(point.y + height * .12) + "px";
+            lifestyleSunPatch.style.width = Math.round(width * 1.78) + "px";
+            lifestyleSunPatch.style.height = Math.round(height * 1.18) + "px";
+        }
+        if (lifestyleGrassLayer) {
+            lifestyleGrassLayer.style.left = Math.round(point.x + width * .73) + "px";
+            lifestyleGrassLayer.style.top = Math.round(point.y + height * .36) + "px";
+        }
+    }
+
+    function createSunPatch() {
+        lifestyleSunPatch = document.createElement("i");
+        lifestyleSunPatch.className = "jinzhu-sun-patch";
+        lifestyleSunPatch.setAttribute("aria-hidden", "true");
+        document.body.appendChild(lifestyleSunPatch);
+        positionLifestyleLayers();
+        if (actionTestMode) parkTestPanelAwayFrom(lifestyleSunPatch);
+    }
+
+    function setGrassFrame(number) {
+        if (!lifestyleGrassImage) return;
+        lifestyleGrassImage.src = spriteBase + "animations/lifestyle-preview/cat-grass/grass/cat-grass-0" + number + ".png";
+    }
+
+    function createGrassLayer() {
+        lifestyleGrassLayer = document.createElement("span");
+        lifestyleGrassLayer.className = "jinzhu-cat-grass-layer is-growing";
+        lifestyleGrassImage = document.createElement("img");
+        lifestyleGrassImage.alt = "";
+        lifestyleGrassImage.setAttribute("aria-hidden", "true");
+        lifestyleGrassLayer.appendChild(lifestyleGrassImage);
+        document.body.appendChild(lifestyleGrassLayer);
+        setGrassFrame(1);
+        positionLifestyleLayers();
+        if (actionTestMode) parkTestPanelAwayFrom(lifestyleGrassLayer);
+    }
+
+    function beginLifestyleAction(name, point, forced) {
+        clearScheduler();
+        clearNewActionLayers();
+        activeNewActionName = name;
+        lifestylePhase = "approach";
+        rememberLifestyleAnchor(point, name);
+        home.classList.add("jinzhu-special-action", "jinzhu-lifestyle-action");
+        home.classList.add(name === "sunbathe" ? "jinzhu-sunbathing" : "jinzhu-eating-grass");
+        home.style.setProperty("--jinzhu-action-scale", "1");
+        if (!forced) state.nextLifestyleAllowed = Date.now() + 12 * 60000;
+        saveState();
+    }
+
+    function finishLifestyleAction() {
+        clearScheduler();
+        clearNewActionLayers();
+        state.nextLifestyleAllowed = Math.max(Number(state.nextLifestyleAllowed || 0), Date.now() + 8 * 60000);
+        var duration = randomBetween(900, 1500);
+        setStatus("walking");
+        setPosition(randomRoamingPosition(), duration, false);
+        schedule(duration + 100, function () { idleFor(12, 35); }, true);
+        saveState();
+    }
+
+    function startSunbathe(forced) {
+        var date = currentDate();
+        var minute = lifestyleMinute(date);
+        var day = lifestyleDayKey(date);
+        if (!forced && (document.hidden || lifestyleBusy() || Date.now() < Number(state.nextLifestyleAllowed || 0) ||
+            minute < 510 || minute > 690 || state.lastSunbatheDay === day || !sunnyMorningWeather())) return false;
+        var target = findLifestylePosition("sunbathe");
+        beginLifestyleAction("sunbathe", target, forced);
+        if (!forced) state.lastSunbatheDay = day;
+        var walkDuration = randomBetween(1100, 1800);
+        setStatus("walking");
+        setPosition(target, walkDuration, false);
+        schedule(walkDuration + 80, function () {
+            lifestylePhase = "active";
+            setPosition(lifestyleTargetPoint(), 0, false);
+            createSunPatch();
+            setStatus("sunbathe-prepare");
+            schedule(1400, function () {
+                setStatus("sunbathe-rest");
+                schedule(randomBetween(15, 35) * 1000, function () {
+                    setStatus("sunbathe-finish");
+                    schedule(1800, finishLifestyleAction, true);
+                }, true);
+            }, true);
+        }, true);
+        saveState();
+        return true;
+    }
+
+    function pulseGrassBite(frame) {
+        if (activeNewActionName !== "cat-grass" || !lifestyleGrassLayer) return;
+        setGrassFrame(frame);
+        lifestyleGrassLayer.classList.remove("is-bitten");
+        void lifestyleGrassLayer.offsetWidth;
+        lifestyleGrassLayer.classList.add("is-bitten");
+    }
+
+    function faceCatTowardGrass(catPoint) {
+        if (!lifestyleGrassLayer) return;
+        positionLifestyleLayers();
+        var grassRect = lifestyleGrassLayer.getBoundingClientRect();
+        var catCenter = catPoint.x + (walker.offsetWidth || 116) / 2;
+        var grassCenter = grassRect.left + grassRect.width / 2;
+        home.style.setProperty("--jinzhu-facing", grassCenter < catCenter ? "-1" : "1");
+    }
+
+    function beginGrassEating() {
+        if (activeNewActionName !== "cat-grass") return;
+        lifestylePhase = "active";
+        var target = lifestyleTargetPoint();
+        setPosition(target, 0, false);
+        faceCatTowardGrass(target);
+        setStatus("grass-sniff");
+        schedule(950, function () {
+            setStatus("grass-bite");
+            [0, 430, 860, 1290].forEach(function (delay, index) {
+                var timer = setTimeout(function () { pulseGrassBite(index % 2 ? 2 : 3); }, delay);
+                lifestyleTimers.push(timer);
+            });
+            schedule(1800, function () {
+                setGrassFrame(2);
+                setStatus("grass-chew");
+                schedule(1300, function () {
+                    setStatus("grass-finish");
+                    schedule(1050, function () {
+                        if (lifestyleGrassLayer) lifestyleGrassLayer.classList.add("is-fading");
+                        schedule(750, finishLifestyleAction, true);
+                    }, true);
+                }, true);
+            }, true);
+        }, true);
+    }
+
+    function startCatGrass(forced, reason) {
+        var date = currentDate();
+        var day = lifestyleDayKey(date);
+        if (!forced && (document.hidden || lifestyleBusy() || weatherIsRainy(latestWeather) || rainActive ||
+            Date.now() < Number(state.nextLifestyleAllowed || 0) || state.lastCatGrassDay === day)) return false;
+        var target = findLifestylePosition("cat-grass");
+        beginLifestyleAction("cat-grass", target, forced);
+        if (!forced) state.lastCatGrassDay = day;
+        createGrassLayer();
+        setStatus("grass-notice");
+        schedule(900, function () {
+            setGrassFrame(2);
+            if (lifestyleGrassLayer) lifestyleGrassLayer.classList.remove("is-growing");
+            schedule(650, function () {
+                var duration = randomBetween(1100, 1800);
+                var approachFrom = clampPosition(currentPosition);
+                var target = lifestyleTargetPoint();
+                lifestylePhase = "approach";
+                setStatus("walking");
+                setPosition(target, duration, false);
+                faceCatTowardGrass(approachFrom);
+                schedule(duration + 80, beginGrassEating, true);
+            }, true);
+        }, true);
+        if (reason === "rain-stop-test") say("雨停咗，生咗猫草。");
+        saveState();
+        return true;
+    }
+
+    function ensureSunbathePlan(date) {
+        var day = lifestyleDayKey(date);
+        if (state.sunbathePlanDay === day && Number(state.sunbathePlanMinute) >= 510 && Number(state.sunbathePlanMinute) <= 690) return;
+        state.sunbathePlanDay = day;
+        state.sunbathePlanMinute = Math.round(randomBetween(510, 690));
+        saveState();
+    }
+
+    function tryNaturalLifestyleBehavior() {
+        if (document.hidden || lifestyleBusy() || Date.now() < Number(state.nextLifestyleAllowed || 0)) return false;
+        var date = currentDate();
+        var minute = lifestyleMinute(date);
+        var day = lifestyleDayKey(date);
+        ensureSunbathePlan(date);
+        if (minute >= Number(state.sunbathePlanMinute) && minute <= 690 && state.lastSunbatheDay !== day && sunnyMorningWeather()) {
+            return startSunbathe(false);
+        }
+        if (!latestWeather || !latestWeather.isDay || weatherIsRainy(latestWeather) || rainActive || state.lastCatGrassDay === day) return false;
+        var sinceFed = Date.now() - Number(state.lastFed || 0);
+        var fedWindow = minute >= 660 && minute <= 1080 && sinceFed >= 30 * 60000 && sinceFed <= 120 * 60000;
+        if (fedWindow && Math.random() < .22) return startCatGrass(false, "after-feed");
+        var recentRainStop = Date.now() - Number(state.lastRainStoppedAt || 0) <= 3 * 60 * 60000;
+        var humid = Number(latestWeather.humidity) >= 78;
+        if ((recentRainStop || humid) && Math.random() < .07) return startCatGrass(false, "humid");
+        if (minute >= 780 && minute <= 1050 && Math.random() < .025) return startCatGrass(false, "afternoon");
+        return false;
+    }
+
+    function faceClock(side) {
+        home.style.setProperty("--jinzhu-facing", side === "left" ? "1" : "-1");
+    }
+
+    function animateActionPosition(start, end, duration, arcHeight, done) {
+        cancelActionMotion();
+        var generation = actionMotionGeneration;
+        var startedAt = Date.now();
+        var step = function () {
+            if (generation !== actionMotionGeneration) return;
+            var progress = Math.max(0, Math.min(1, (Date.now() - startedAt) / duration));
+            var eased = progress * progress * (3 - 2 * progress);
+            var arc = arcHeight ? Math.sin(Math.PI * progress) * arcHeight : 0;
+            setPosition({
+                x: start.x + (end.x - start.x) * eased,
+                y: start.y + (end.y - start.y) * eased - arc
+            }, 0, false);
+            if (progress < 1) {
+                actionMotionFrame = window.requestAnimationFrame ? window.requestAnimationFrame(step) : setTimeout(step, 16);
+            } else {
+                actionMotionFrame = null;
+                if (done) done();
+            }
+        };
+        step();
+    }
+
+    function walkToActionPoint(point, done) {
+        var duration = randomBetween(1000, 1550);
+        setStatus("walking");
+        setPosition(point, duration, false);
+        schedule(duration + 40, done, true);
+    }
+
+    function startGroundNewAction(name) {
+        var config = newActionConfig[name];
+        clearScheduler();
+        clearNewActionLayers();
+        setStatus(name);
+        schedule(config.frame * config.frames.length + Number(config.hold || 900), finishNewAction, true);
+    }
+
+    function chooseClockSide() {
+        var catX = currentPosition.x + (walker.offsetWidth || 116) / 2;
+        var catY = currentPosition.y + (walker.offsetHeight || 116) / 2;
+        var hour = document.getElementById("hour-card");
+        var minute = document.getElementById("minute-card");
+        if (!hour || !minute) return "left";
+        var hourRect = hour.getBoundingClientRect();
+        var minuteRect = minute.getBoundingClientRect();
+        var hourDistance = Math.hypot(catX - (hourRect.left + hourRect.width / 2), catY - (hourRect.top + hourRect.height / 2));
+        var minuteDistance = Math.hypot(catX - (minuteRect.left + minuteRect.width / 2), catY - (minuteRect.top + minuteRect.height / 2));
+        return hourDistance <= minuteDistance ? "left" : "right";
+    }
+
+    function startLookAtClock() {
+        activeClockSide = chooseClockSide();
+        var geometry = clockInteractionGeometry(activeClockSide);
+        if (!geometry) { startGroundNewAction("look-clock"); return; }
+        walkToActionPoint(geometry.look, function () {
+            prepareNewActionLayers("look-clock");
+            faceClock(activeClockSide);
+            setPosition(clockInteractionGeometry(activeClockSide).look, 0, false);
+            setStatus("look-clock");
+            var config = newActionConfig["look-clock"];
+            schedule(config.frame * config.frames.length + config.hold, finishNewAction, true);
+        });
+    }
+
+    function startClockJump(finalAction) {
+        activeClockSide = chooseClockSide();
+        var geometry = clockInteractionGeometry(activeClockSide);
+        if (!geometry) { startGroundNewAction(finalAction); return; }
+        walkToActionPoint(geometry.approach, function () {
+            prepareNewActionLayers("jump-clock");
+            faceClock(activeClockSide);
+            var fresh = clockInteractionGeometry(activeClockSide);
+            setPosition(fresh.approach, 0, false);
+            setStatus("jump-clock");
+            var arcHeight = Math.max(82, Math.min(150, Math.abs(fresh.approach.y - fresh.top.y) * .48 + 46));
+            animateActionPosition(fresh.approach, fresh.top, 1050, arcHeight, function () {
+                activeNewActionName = "lie-clock";
+                setPosition(clockInteractionGeometry(activeClockSide).top, 0, false);
+                setStatus("lie-clock");
+                var lieConfig = newActionConfig["lie-clock"];
+                var hold = finalAction === "lie-clock" ? lieConfig.hold : 1500;
+                schedule(lieConfig.frame * lieConfig.frames.length + hold, finishNewAction, true);
+            });
+        });
+    }
+
+    function removeScratchDebris(node) {
+        var index = scratchDebrisNodes.indexOf(node);
+        if (index >= 0) scratchDebrisNodes.splice(index, 1);
+        if (node.parentNode) node.parentNode.removeChild(node);
+    }
+
+    function emitScratchDebris(geometry) {
+        if (!geometry || activeNewActionName !== "scratch-digits") return;
+        var originX = geometry.contact.x;
+        var originY = geometry.contact.y + 17;
+        var chipCount = Math.random() < .35 ? 2 : 1;
+        for (var i = 0; i < chipCount; i++) {
+            var chip = document.createElement("i");
+            chip.className = "jinzhu-paper-chip";
+            chip.style.left = Math.round(originX + randomBetween(-3, 4)) + "px";
+            chip.style.top = Math.round(originY + randomBetween(-5, 7)) + "px";
+            chip.style.width = randomBetween(3, 6) + "px";
+            chip.style.height = randomBetween(4, 8) + "px";
+            chip.style.setProperty("--jinzhu-chip-x", randomBetween(-16, 17) + "px");
+            chip.style.setProperty("--jinzhu-chip-rotate", randomBetween(-110, 110) + "deg");
+            chip.style.setProperty("--jinzhu-chip-duration", randomBetween(650, 900) + "ms");
+            document.body.appendChild(chip);
+            scratchDebrisNodes.push(chip);
+            (function (node) {
+                var timer = setTimeout(function () { removeScratchDebris(node); }, 950);
+                scratchEffectTimers.push(timer);
+            })(chip);
+        }
+    }
+
+    function pulseScratchDigit(digit) {
+        if (!digit || activeNewActionName !== "scratch-digits") return;
+        clearTimeout(scratchDigitTimer);
+        if (activeScratchDigit) activeScratchDigit.classList.remove("jinzhu-digit-scratched");
+        activeScratchDigit = digit;
+        digit.classList.remove("jinzhu-digit-scratched");
+        void digit.offsetWidth;
+        digit.classList.add("jinzhu-digit-scratched");
+        scratchDigitTimer = setTimeout(function () {
+            if (activeScratchDigit) activeScratchDigit.classList.remove("jinzhu-digit-scratched");
+            activeScratchDigit = null;
+            scratchDigitTimer = null;
+        }, 260);
+    }
+
+    function leaveDigitScratch() {
+        clearNewActionLayers();
+        var duration = randomBetween(900, 1400);
+        setStatus("walking");
+        setPosition(randomRoamingPosition(), duration, false);
+        schedule(duration + 80, function () { idleFor(12, 35); }, true);
+    }
+
+    function beginDigitScratch() {
+        var geometry = digitScratchGeometry(activeClockSide);
+        if (!geometry) { finishNewAction(); return; }
+        setPosition(geometry.scratch, 0, false);
+        setStatus("scratch-digits");
+        [150, 450, 750, 1050].forEach(function (delay) {
+            var timer = setTimeout(function () {
+                var latest = digitScratchGeometry(activeClockSide);
+                if (!latest || activeNewActionName !== "scratch-digits") return;
+                pulseScratchDigit(latest.digit);
+                emitScratchDebris(latest);
+            }, delay);
+            scratchEffectTimers.push(timer);
+        });
+        var config = newActionConfig["scratch-digits"];
+        schedule(config.frame * config.frames.length + config.hold, leaveDigitScratch, true);
+    }
+
+    function startDigitScratch() {
+        activeClockSide = chooseClockSide();
+        var geometry = digitScratchGeometry(activeClockSide);
+        if (!geometry) { clearNewActionLayers(); idleFor(12, 35); return; }
+        if (actionTestMode) parkTestPanelAwayFrom(document.querySelector(".clock"));
+        walkToActionPoint(geometry.approach, function () {
+            prepareNewActionLayers("scratch-digits");
+            faceClock(activeClockSide);
+            var fresh = digitScratchGeometry(activeClockSide);
+            if (!fresh) { finishNewAction(); return; }
+            setPosition(fresh.approach, 0, false);
+            setStatus("jump-clock");
+            var arcHeight = Math.max(62, Math.min(105, Math.abs(fresh.approach.y - fresh.scratch.y) * .34 + 36));
+            animateActionPosition(fresh.approach, fresh.scratch, 820, arcHeight, beginDigitScratch);
+        });
+    }
+
+    function pulseClockCard(card) {
+        if (!card || activeNewActionName !== "paw-tap") return;
+        clearTimeout(clockTapTimer);
+        if (activeTappedCard) activeTappedCard.classList.remove("jinzhu-clock-tapped");
+        activeTappedCard = card;
+        card.classList.remove("jinzhu-clock-tapped");
+        void card.offsetWidth;
+        card.classList.add("jinzhu-clock-tapped");
+        clockTapTimer = setTimeout(function () {
+            if (activeTappedCard) activeTappedCard.classList.remove("jinzhu-clock-tapped");
+            activeTappedCard = null;
+            clockTapTimer = null;
+        }, 430);
+    }
+
+    function pulseGripTarget(target) {
+        if (!target || !isCardGripAction(activeNewActionName)) return;
+        clearTimeout(cardGripTimer);
+        if (activeGripTarget) activeGripTarget.classList.remove("jinzhu-card-gripped");
+        activeGripTarget = target;
+        target.classList.remove("jinzhu-card-gripped");
+        void target.offsetWidth;
+        target.classList.add("jinzhu-card-gripped");
+        cardGripTimer = setTimeout(function () {
+            if (activeGripTarget) activeGripTarget.classList.remove("jinzhu-card-gripped");
+            activeGripTarget = null;
+            cardGripTimer = null;
+        }, 520);
+    }
+
+    function leaveCardGrip() {
+        clearNewActionLayers();
+        var duration = randomBetween(900, 1400);
+        setStatus("walking");
+        setPosition(randomRoamingPosition(), duration, false);
+        schedule(duration + 80, function () { idleFor(12, 35); }, true);
+    }
+
+    function startCardGripAction(name) {
+        activeCardGripKind = name === "paw-rest-message" ? "message" :
+            name === "paw-rest-weather" ? "weather" : chooseCardGripKind();
+        var target = cardGripElement(activeCardGripKind);
+        if (!target) { clearNewActionLayers(); idleFor(12, 35); return; }
+        activeCardGripSide = chooseCardGripSide(target);
+        var geometry = cardGripGeometry(activeCardGripKind, activeCardGripSide);
+        if (!geometry) { clearNewActionLayers(); idleFor(12, 35); return; }
+        if (actionTestMode) parkTestPanelAwayFrom(target);
+        walkToActionPoint(geometry.approach, function () {
+            prepareNewActionLayers(name);
+            home.style.setProperty("--jinzhu-facing", activeCardGripSide === "left" ? "1" : "-1");
+            var fresh = cardGripGeometry(activeCardGripKind, activeCardGripSide);
+            if (!fresh) { finishNewAction(); return; }
+            setPosition(fresh.grip, 420, false);
+            schedule(450, function () {
+                var contact = cardGripGeometry(activeCardGripKind, activeCardGripSide);
+                if (!contact) { finishNewAction(); return; }
+                setPosition(contact.grip, 0, false);
+                setStatus(name);
+                var config = newActionConfig[name];
+                schedule(config.frame * 2, function () {
+                    var latest = cardGripGeometry(activeCardGripKind, activeCardGripSide);
+                    pulseGripTarget(latest && latest.element);
+                    schedule(config.frame * Math.max(1, config.frames.length - 2) + config.hold, function () {
+                        var release = newActionConfig["paw-rest-release"];
+                        setStatus("paw-rest-release");
+                        schedule(release.frame * release.frames.length, leaveCardGrip, true);
+                    }, true);
+                }, true);
+            }, true);
+        });
+    }
+
+    function startClockEdgeAction(name) {
+        activeClockSide = chooseClockSide();
+        var geometry = clockInteractionGeometry(activeClockSide);
+        if (!geometry) { startGroundNewAction(name); return; }
+        walkToActionPoint(geometry.approach, function () {
+            prepareNewActionLayers(name);
+            faceClock(activeClockSide);
+            var fresh = clockInteractionGeometry(activeClockSide);
+            if (!fresh) { finishNewAction(); return; }
+            setPosition(fresh.edge, 360, false);
+            schedule(390, function () {
+                var contact = clockInteractionGeometry(activeClockSide);
+                if (!contact) { finishNewAction(); return; }
+                setPosition(contact.edge, 0, false);
+                setStatus(name);
+                var config = newActionConfig[name];
+                if (name === "paw-tap") {
+                    schedule(config.frame * 2, function () {
+                        var target = clockInteractionGeometry(activeClockSide);
+                        pulseClockCard(target && target.card);
+                        schedule(config.frame * Math.max(1, config.frames.length - 2) + config.hold, finishNewAction, true);
+                    }, true);
+                } else {
+                    schedule(config.frame * config.frames.length + config.hold, finishNewAction, true);
+                }
+            }, true);
+        });
+    }
+
+    function retractCardPeek() {
+        var latest = cardPeekGeometry();
+        if (!latest) { finishNewAction(); return; }
+        animateActionPosition(latest.peek, latest.hidden, 600, 0, finishNewAction);
+    }
+
+    function holdThenRetractCardPeek() {
+        var config = newActionConfig["card-peek"];
+        schedule(config.frame * config.frames.length + config.hold, retractCardPeek, true);
+    }
+
+    function startCardPeekAction() {
+        var geometry = cardPeekGeometry();
+        if (!geometry) { startGroundNewAction("card-peek"); return; }
+        if (actionTestMode) parkTestPanelAwayFrom(messageBoardEl());
+        clearScheduler();
+        prepareNewActionLayers("card-peek");
+        setPosition(geometry.hidden, 0, false);
+        setStatus("card-peek");
+        animateActionPosition(geometry.hidden, geometry.peek, 650, 0, function () {
+            holdThenRetractCardPeek();
+        });
+    }
+
     function playNewAction(name, force) {
+        if (name === "jump-clock") name = "scratch-digits";
         var config = newActionConfig[name];
         if (!config || (!force && (Date.now() < Number(state["newAction_" + name] || 0) || reminderActive || currentStatus === "sleeping" || currentStatus === "rain" || currentStatus === "heat"))) return false;
-        clearScheduler();
         state["newAction_" + name] = Date.now() + config.cooldown;
-        var target = newActionPoint(name);
-        setStatus("walking");
-        setPosition(target, scaledDuration(randomBetween(650, 1500)), false);
-        schedule(1550, function () {
-            setStatus(name);
-            schedule(config.frame * config.frames.length * 2, function () { idleFor(12, 35); }, true);
-        }, true);
+        if (name === "look-clock") startLookAtClock();
+        else if (name === "scratch-digits") startDigitScratch();
+        else if (name === "lie-clock") startClockJump(name);
+        else if (isCardGripAction(name)) startCardGripAction(name);
+        else if (name === "paw-tap") startClockEdgeAction(name);
+        else if (name === "card-peek") startCardPeekAction();
+        else startGroundNewAction(name);
         saveState();
         return true;
     }
@@ -1127,7 +2048,7 @@
     }
 
     function startRainWatching() {
-        if (!rainActive || currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy") return false;
+        if (!rainActive || activeNewActionName || currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy") return false;
         clearScheduler();
         setPosition(restoredPosition(), scaledDuration(450), false);
         setStatus("rain");
@@ -1154,7 +2075,7 @@
             if (currentStatus === "heat") idleFor(30, 75);
             return true;
         }
-        if (currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "rain" || currentStatus === "grooming") return false;
+        if (activeNewActionName || currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "rain" || currentStatus === "grooming") return false;
         clearScheduler();
         setStatus("heat");
         return true;
@@ -1211,6 +2132,7 @@
             setStatus("idle");
             return;
         }
+        if (tryNaturalLifestyleBehavior()) return;
         if (rainActive && Math.random() < .18 && startRainWatching()) return;
         var action = weightedChoice(behaviorWeights());
         if (companionMode === "quiet" && (action === "walking" || action === "playing")) action = "idle";
@@ -1223,7 +2145,7 @@
         else if (action === "look-around") startLookAround();
         else if (action === "grooming") startGrooming();
         else if (action === "walking") {
-            if (Math.random() < .22 && playNewAction(["turn", "stretch", "crouch", "look-clock", "card-peek", "paw-rest", "paw-tap"][Math.floor(Math.random() * 7)], false)) return;
+            if (Math.random() < .22 && playNewAction(["turn", "stretch", "crouch", "look-clock", "card-peek", "paw-rest", "paw-tap", "scratch-digits"][Math.floor(Math.random() * 8)], false)) return;
             if (Math.random() < .08 && startClockAnchor(routinePeriod() === "night" ? "clock-nap" : ["clock-perch", "clock-hook", "clock-peek", "colon-sit"][Math.floor(Math.random() * 4)], false)) return;
             if (Math.random() < .06 && startMessageVisit(Math.random() < .4 ? "message-peek" : "message-sit", false)) return;
             if (Math.random() < .03 && startMessagePat(false)) return;
@@ -1406,6 +2328,10 @@
     }
 
     function openInteractions(message) {
+        if (activeNewActionName) {
+            say("等我做完先啦。");
+            return;
+        }
         clearScheduler();
         clearTimeout(panelTimer);
         panel.hidden = false;
@@ -1462,6 +2388,10 @@
     }
 
     function petJinzhu() {
+        if (activeNewActionName) {
+            say("等我做完先啦。");
+            return;
+        }
         markImmersiveInteraction();
         closeInteractions(true);
         clearScheduler();
@@ -1476,6 +2406,10 @@
     }
 
     function beginFeeding() {
+        if (activeNewActionName) {
+            say("等我做完先啦。");
+            return;
+        }
         markImmersiveInteraction();
         closeInteractions(true);
         clearScheduler();
@@ -1636,7 +2570,30 @@
     });
 
     function recalculatePosition() {
-        if (clockScratchActive) {
+        if (activeNewActionName) {
+            if (activeNewActionName === "jump-clock" && actionMotionFrame !== null) {
+                cancelActionMotion();
+                activeNewActionName = "lie-clock";
+                setStatus("lie-clock");
+                var resizeLieConfig = newActionConfig["lie-clock"];
+                schedule(resizeLieConfig.frame * resizeLieConfig.frames.length + resizeLieConfig.hold, finishNewAction, true);
+            }
+            if (activeNewActionName === "scratch-digits" && actionMotionFrame !== null) {
+                cancelActionMotion();
+                beginDigitScratch();
+                return;
+            }
+            if (activeNewActionName === "card-peek" && actionMotionFrame !== null) {
+                cancelActionMotion();
+                var resizedPeek = cardPeekGeometry();
+                if (!resizedPeek) { finishNewAction(); return; }
+                setPosition(resizedPeek.peek, 0, false);
+                holdThenRetractCardPeek();
+                return;
+            }
+            setPosition(newActionPoint(activeNewActionName), 0, false);
+            positionLifestyleLayers();
+        } else if (clockScratchActive) {
             var scratchPoint = clockScratchPoint();
             if (scratchPoint) setPosition(scratchPoint, 0, false);
             else finishClockScratch();
@@ -1694,11 +2651,26 @@
         }
     });
 
+    window.addEventListener("jinzhu:weather", function (event) {
+        var previousWasRain = weatherIsRainy(latestWeather);
+        var detail = event && event.detail;
+        if (!detail || typeof detail !== "object") return;
+        latestWeather = detail;
+        if (previousWasRain && !weatherIsRainy(latestWeather)) {
+            state.lastRainStoppedAt = Date.now();
+            saveState();
+        }
+    });
+
     document.addEventListener("visibilitychange", function () {
         clearScheduler();
         clearInterval(spriteTimer);
         spriteTimer = null;
         if (document.hidden) {
+            if (activeNewActionName === "sunbathe" || activeNewActionName === "cat-grass") {
+                clearNewActionLayers();
+                setStatus("idle");
+            }
             saveState();
             return;
         }
@@ -1745,6 +2717,7 @@
        touches sprites or positions itself.  This is the scheduler's single
        gateway for wake/sleep priority. */
     function setExternalIdleLevel(level) {
+        if (activeNewActionName && level !== "awake") return;
         if (level === "sleep") {
             if (currentStatus !== "sleeping" && !feedingPending && !reminderActive && currentStatus !== "rain" && currentStatus !== "heat" && currentStatus !== "fan") startSleeping();
             return;
@@ -1778,7 +2751,7 @@
             };
         },
         isBusy: function () {
-                return feedingPending || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan" || climbing || perched || clockScratchActive || !!clockAnchorActive || !!messageAnchorActive;
+                return feedingPending || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan" || climbing || perched || clockScratchActive || !!clockAnchorActive || !!messageAnchorActive || !!activeNewActionName;
         },
         say: say,
         openInteractions: openInteractions,
@@ -1792,7 +2765,9 @@
         startClockScratch: function () { return startClockScratch(true); },
         forceMove: function () { state.nextWalkAllowed = 0; startWalking(); },
         playNewAction: function (name) { return playNewAction(name, true); },
-        resumeFreeRoam: function () { clearScheduler(); setStatus("idle"); schedule(600, chooseNextBehavior, true); },
+        startSunbathe: function () { return startSunbathe(true); },
+        startCatGrass: function (reason) { return startCatGrass(true, reason || "test"); },
+        resumeFreeRoam: function () { clearScheduler(); clearNewActionLayers(); setStatus("idle"); schedule(600, chooseNextBehavior, true); },
         requestRain: requestRain,
         requestHeat: requestHeat,
         activateCooling: activateCooling,
@@ -1841,15 +2816,135 @@
         };
     }
 
+    var testPanelBox = null;
+    var testPanelStorageKey = "jinzhuActionTestPanel";
+
+    function readTestPanelState() {
+        try {
+            var saved = JSON.parse(sessionStorage.getItem(testPanelStorageKey) || "{}");
+            return {
+                left: isFinite(Number(saved.left)) ? Number(saved.left) : 12,
+                top: isFinite(Number(saved.top)) ? Number(saved.top) : 12,
+                collapsed: !!saved.collapsed
+            };
+        } catch (e) {
+            return { left: 12, top: 12, collapsed: false };
+        }
+    }
+
+    function saveTestPanelState() {
+        if (!testPanelBox) return;
+        try {
+            sessionStorage.setItem(testPanelStorageKey, JSON.stringify({
+                left: parseFloat(testPanelBox.style.left) || 0,
+                top: parseFloat(testPanelBox.style.top) || 0,
+                collapsed: testPanelBox.classList.contains("is-collapsed")
+            }));
+        } catch (e) {}
+    }
+
+    function clampTestPanelPosition() {
+        if (!testPanelBox) return;
+        var rect = testPanelBox.getBoundingClientRect();
+        var left = Math.max(8, Math.min(window.innerWidth - rect.width - 8, parseFloat(testPanelBox.style.left) || 8));
+        var top = Math.max(8, Math.min(window.innerHeight - rect.height - 8, parseFloat(testPanelBox.style.top) || 8));
+        testPanelBox.style.left = Math.round(left) + "px";
+        testPanelBox.style.top = Math.round(top) + "px";
+    }
+
+    function setTestPanelCollapsed(collapsed) {
+        if (!testPanelBox) return;
+        testPanelBox.classList.toggle("is-collapsed", !!collapsed);
+        var toggle = testPanelBox.querySelector("[data-test-panel-toggle]");
+        if (toggle) {
+            toggle.textContent = collapsed ? "展開" : "收起";
+            toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        }
+        clampTestPanelPosition();
+        saveTestPanelState();
+    }
+
+    function parkTestPanelAwayFrom(element) {
+        if (!testPanelBox) return;
+        setTestPanelCollapsed(true);
+        if (!element) return;
+        var targetRect = element.getBoundingClientRect();
+        var panelRect = testPanelBox.getBoundingClientRect();
+        var targetIsLeft = targetRect.left + targetRect.width / 2 < window.innerWidth / 2;
+        var targetIsTop = targetRect.top + targetRect.height / 2 < window.innerHeight / 2;
+        testPanelBox.style.left = Math.round(targetIsLeft ? window.innerWidth - panelRect.width - 8 : 8) + "px";
+        testPanelBox.style.top = Math.round(targetIsTop ? window.innerHeight - panelRect.height - 8 : 8) + "px";
+        clampTestPanelPosition();
+        saveTestPanelState();
+    }
+
     function installActionTestPanel() {
         if (!actionTestMode) return;
         var box = document.createElement("section");
         box.className = "jinzhu-action-test";
-        box.innerHTML = "<b>金主動作測試</b>";
-        var actions = [["自由隨機走動", "move"], ["向左走", "left"], ["向右走", "right"], ["回頭", "turn"], ["伸懶腰", "stretch"], ["趴低", "crouch"], ["側睡", "side-sleep"], ["抬頭看時鐘", "look-clock"], ["卡片後探頭", "card-peek"], ["前爪搭住", "paw-rest"], ["拍一下", "paw-tap"], ["跳上時鐘", "jump-clock"], ["趴在時鐘上", "lie-clock"], ["恢復日常自由活動", "resume"]];
-        actions.forEach(function (item) { var button = document.createElement("button"); button.type = "button"; button.textContent = item[0]; button.setAttribute("data-action", item[1]); box.appendChild(button); });
-        box.addEventListener("click", function (event) { var action = event.target.getAttribute("data-action"); if (!action) return; if (action === "resume") return window.JinzhuBridge.resumeFreeRoam(); if (action === "move") return window.JinzhuBridge.forceMove(); if (action === "left" || action === "right") { var b = getViewportBounds(); setStatus("walking"); setPosition({ x: action === "left" ? b.minX : b.maxX, y: randomBetween(b.minY, b.maxY) }, 1200); return; } window.JinzhuBridge.playNewAction(action); });
+        box.innerHTML = "<div class=\"jinzhu-action-test-header\" data-test-panel-drag><b>金主動作測試</b><button type=\"button\" data-test-panel-toggle aria-expanded=\"true\">收起</button></div><div class=\"jinzhu-action-test-content\"></div>";
+        testPanelBox = box;
+        var content = box.querySelector(".jinzhu-action-test-content");
+        var actions = [["自由隨機走動", "move"], ["向左走", "left"], ["向右走", "right"], ["回頭", "turn"], ["伸懶腰", "stretch"], ["趴低", "crouch"], ["側睡", "side-sleep"], ["抬頭看時鐘", "look-clock"], ["卡片後探頭", "card-peek"], ["前爪搭住留言板", "paw-rest-message"], ["前爪搭住天氣卡", "paw-rest-weather"], ["拍一下", "paw-tap"], ["磨抓數字", "scratch-digits"], ["趴在時鐘上", "lie-clock"], ["曬太陽", "sunbathe"], ["食貓草", "cat-grass"], ["模擬雨停後長出貓草", "rain-stop-grass"], ["恢復日常自由活動", "resume"]];
+        actions.forEach(function (item) { var button = document.createElement("button"); button.type = "button"; button.textContent = item[0]; button.setAttribute("data-action", item[1]); content.appendChild(button); });
+        box.addEventListener("click", function (event) {
+            if (event.target.closest("[data-test-panel-toggle]")) {
+                setTestPanelCollapsed(!box.classList.contains("is-collapsed"));
+                return;
+            }
+            var action = event.target.getAttribute("data-action");
+            if (!action) return;
+            if (action === "resume") return window.JinzhuBridge.resumeFreeRoam();
+            if (action === "sunbathe") return window.JinzhuBridge.startSunbathe();
+            if (action === "cat-grass") return window.JinzhuBridge.startCatGrass("test");
+            if (action === "rain-stop-grass") return window.JinzhuBridge.startCatGrass("rain-stop-test");
+            if (action === "move") { clearNewActionLayers(); return window.JinzhuBridge.forceMove(); }
+            if (action === "left" || action === "right") {
+                clearScheduler();
+                clearNewActionLayers();
+                var b = getViewportBounds();
+                setStatus("walking");
+                setPosition({ x: action === "left" ? b.minX : b.maxX, y: randomBetween(b.minY, b.maxY) }, 1200);
+                schedule(1500, function () { idleFor(12, 35); }, true);
+                return;
+            }
+            window.JinzhuBridge.playNewAction(action);
+        });
         document.body.appendChild(box);
+        var state = readTestPanelState();
+        box.style.left = state.left + "px";
+        box.style.top = state.top + "px";
+        setTestPanelCollapsed(state.collapsed);
+
+        var handle = box.querySelector("[data-test-panel-drag]");
+        var drag = null;
+        handle.addEventListener("pointerdown", function (event) {
+            if (event.target.closest("button")) return;
+            var rect = box.getBoundingClientRect();
+            drag = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+            box.classList.add("is-dragging");
+            if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+            event.preventDefault();
+        });
+        window.addEventListener("pointermove", function (event) {
+            if (!drag) return;
+            box.style.left = drag.left + event.clientX - drag.x + "px";
+            box.style.top = drag.top + event.clientY - drag.y + "px";
+            clampTestPanelPosition();
+        });
+        window.addEventListener("pointerup", function () {
+            if (!drag) return;
+            drag = null;
+            box.classList.remove("is-dragging");
+            saveTestPanelState();
+        });
+        window.addEventListener("pointercancel", function () {
+            if (!drag) return;
+            drag = null;
+            box.classList.remove("is-dragging");
+            saveTestPanelState();
+        });
+        window.addEventListener("resize", function () { clampTestPanelPosition(); saveTestPanelState(); });
     }
 
     catImage.addEventListener("error", function () {
