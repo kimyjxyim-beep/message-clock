@@ -1171,6 +1171,7 @@
     var lifestyleGrassImage = null;
     var lifestyleTimers = [];
     var activeClockSide = "left";
+    var clockSleepActive = false;
     var actionMotionFrame = null;
     var actionMotionGeneration = 0;
     var activeTappedCard = null;
@@ -1211,11 +1212,14 @@
     }
 
     function clearNewActionLayers() {
+        var wasClockSleeping = clockSleepActive;
         cancelActionMotion();
         clearLifestyleLayers();
+        clockSleepActive = false;
         activeNewActionName = "";
-        home.classList.remove("jinzhu-special-action", "jinzhu-real-clock-action", "jinzhu-real-card-peek", "jinzhu-real-card-grip");
+        home.classList.remove("jinzhu-special-action", "jinzhu-real-clock-action", "jinzhu-real-card-peek", "jinzhu-real-card-grip", "jinzhu-clock-sleeping");
         home.style.removeProperty("--jinzhu-action-scale");
+        if (wasClockSleeping) state.sleepUntil = 0;
         if (activeNewActionHost) activeNewActionHost.classList.remove("jinzhu-real-peek-host");
         if (activeNewActionHost) activeNewActionHost.classList.remove("jinzhu-real-grip-host");
         clearTimeout(clockTapTimer);
@@ -1302,6 +1306,11 @@
         if (!rect.width || !rect.height) return null;
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
+        var bounds = getViewportBounds();
+        var rawTop = {
+            x: rect.left + (rect.width - w) / 2,
+            y: rect.top - h * .70
+        };
         return {
             card: card,
             rect: rect,
@@ -1318,10 +1327,9 @@
                 x: side === "left" ? rect.left - w * .84 : rect.right - w * .16,
                 y: rect.top + Math.min(rect.height * .28, 54) - h * .50
             }),
-            top: clampPosition({
-                x: rect.left + (rect.width - w) / 2,
-                y: rect.top - h * .70
-            })
+            top: clampPosition(rawTop),
+            topFits: rawTop.x >= bounds.minX && rawTop.x <= bounds.maxX &&
+                rawTop.y >= bounds.minY && rawTop.y <= bounds.maxY
         };
     }
 
@@ -1436,6 +1444,46 @@
     function finishNewAction() {
         clearNewActionLayers();
         idleFor(12, 35);
+    }
+
+    function wakeClockSleep(immediate) {
+        if (!clockSleepActive) return false;
+        clearScheduler();
+        clearNewActionLayers();
+        home.classList.remove("jinzhu-deep-sleep");
+        if (immediate) {
+            setStatus("idle");
+            saveState();
+            return true;
+        }
+        var duration = randomBetween(900, 1500);
+        setStatus("walking");
+        setPosition(randomRoamingPosition(), duration, false);
+        schedule(duration + 100, function () { idleFor(20, 55); }, true);
+        saveState();
+        return true;
+    }
+
+    function enterClockSleep() {
+        if (activeNewActionName !== "lie-clock") return false;
+        var geometry = clockInteractionGeometry(activeClockSide);
+        if (!geometry || !geometry.topFits) {
+            finishNewAction();
+            return false;
+        }
+        clearScheduler();
+        clockSleepActive = true;
+        state.sleepUntil = 0;
+        home.classList.add("jinzhu-clock-sleeping");
+        setPosition(geometry.top, 0, false);
+        setStatus("sleeping");
+        saveState();
+        return true;
+    }
+
+    function scheduleClockSleepTransition() {
+        var lieConfig = newActionConfig["lie-clock"];
+        schedule(lieConfig.frame * lieConfig.frames.length + 450, enterClockSleep, true);
     }
 
     function lifestyleDayKey(date) {
@@ -1801,9 +1849,7 @@
                 activeNewActionName = "lie-clock";
                 setPosition(clockInteractionGeometry(activeClockSide).top, 0, false);
                 setStatus("lie-clock");
-                var lieConfig = newActionConfig["lie-clock"];
-                var hold = finalAction === "lie-clock" ? lieConfig.hold : 1500;
-                schedule(lieConfig.frame * lieConfig.frames.length + hold, finishNewAction, true);
+                scheduleClockSleepTransition();
             });
         });
     }
@@ -2023,6 +2069,7 @@
 
     function playNewAction(name, force) {
         if (name === "jump-clock") name = "scratch-digits";
+        if (force && clockSleepActive) wakeClockSleep(true);
         var config = newActionConfig[name];
         if (!config || (!force && (Date.now() < Number(state["newAction_" + name] || 0) || reminderActive || currentStatus === "sleeping" || currentStatus === "rain" || currentStatus === "heat"))) return false;
         state["newAction_" + name] = Date.now() + config.cooldown;
@@ -2067,6 +2114,7 @@
             }
             return true;
         }
+        if (clockSleepActive) wakeClockSleep(true);
         return startRainWatching();
     }
 
@@ -2075,6 +2123,7 @@
             if (currentStatus === "heat") idleFor(30, 75);
             return true;
         }
+        if (clockSleepActive) wakeClockSleep(true);
         if (activeNewActionName || currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "rain" || currentStatus === "grooming") return false;
         clearScheduler();
         setStatus("heat");
@@ -2082,6 +2131,7 @@
     }
 
     function activateCooling(kind) {
+        if (clockSleepActive) wakeClockSleep(true);
         clearScheduler();
         if (kind === "fan") {
             setStatus("fan");
@@ -2241,6 +2291,12 @@
             return;
         }
         if (currentStatus === "sleeping") {
+            if (clockSleepActive) {
+                wakeClockSleep(false);
+                say("我醒啦。");
+                panel.hidden = true;
+                return;
+            }
             clearScheduler();
             setStatus("sleepy");
             say(routinePeriod() === "night" ? "嗯…我聽到。" : "我醒啦。");
@@ -2328,6 +2384,7 @@
     }
 
     function openInteractions(message) {
+        if (clockSleepActive) wakeClockSleep(true);
         if (activeNewActionName) {
             say("等我做完先啦。");
             return;
@@ -2388,6 +2445,7 @@
     }
 
     function petJinzhu() {
+        if (clockSleepActive) wakeClockSleep(true);
         if (activeNewActionName) {
             say("等我做完先啦。");
             return;
@@ -2459,6 +2517,12 @@
             return;
         }
         if (currentStatus === "sleeping") {
+            if (clockSleepActive) {
+                wakeClockSleep(false);
+                say("我醒啦。");
+                closeInteractions(true);
+                return;
+            }
             clearScheduler();
             setStatus("sleepy");
             say(routinePeriod() === "night" ? "嗯……我听到。" : "我醒啦。" );
@@ -2570,13 +2634,19 @@
     });
 
     function recalculatePosition() {
-        if (activeNewActionName) {
+        if (clockSleepActive) {
+            var sleepGeometry = clockInteractionGeometry(activeClockSide);
+            if (!sleepGeometry || !sleepGeometry.topFits) {
+                wakeClockSleep(false);
+                return;
+            }
+            setPosition(sleepGeometry.top, 0, false);
+        } else if (activeNewActionName) {
             if (activeNewActionName === "jump-clock" && actionMotionFrame !== null) {
                 cancelActionMotion();
                 activeNewActionName = "lie-clock";
                 setStatus("lie-clock");
-                var resizeLieConfig = newActionConfig["lie-clock"];
-                schedule(resizeLieConfig.frame * resizeLieConfig.frames.length + resizeLieConfig.hold, finishNewAction, true);
+                scheduleClockSleepTransition();
             }
             if (activeNewActionName === "scratch-digits" && actionMotionFrame !== null) {
                 cancelActionMotion();
@@ -2685,6 +2755,10 @@
         clearScheduler();
         applyElapsedTime();
         renderStats();
+        if (clockSleepActive) {
+            setStatus("sleeping");
+            return;
+        }
         if (debugMode && debugAction && debugDelayedAction) {
             setStatus("idle");
             schedule(1000, chooseNextBehavior, true);
@@ -2717,6 +2791,13 @@
        touches sprites or positions itself.  This is the scheduler's single
        gateway for wake/sleep priority. */
     function setExternalIdleLevel(level) {
+        if (clockSleepActive) {
+            if (level === "awake") {
+                state.lastInteraction = Date.now();
+                saveState();
+            }
+            return;
+        }
         if (activeNewActionName && level !== "awake") return;
         if (level === "sleep") {
             if (currentStatus !== "sleeping" && !feedingPending && !reminderActive && currentStatus !== "rain" && currentStatus !== "heat" && currentStatus !== "fan") startSleeping();
@@ -2767,7 +2848,13 @@
         playNewAction: function (name) { return playNewAction(name, true); },
         startSunbathe: function () { return startSunbathe(true); },
         startCatGrass: function (reason) { return startCatGrass(true, reason || "test"); },
-        resumeFreeRoam: function () { clearScheduler(); clearNewActionLayers(); setStatus("idle"); schedule(600, chooseNextBehavior, true); },
+        resumeFreeRoam: function () {
+            if (wakeClockSleep(false)) return;
+            clearScheduler();
+            clearNewActionLayers();
+            setStatus("idle");
+            schedule(600, chooseNextBehavior, true);
+        },
         requestRain: requestRain,
         requestHeat: requestHeat,
         activateCooling: activateCooling,
@@ -2790,6 +2877,7 @@
         setReminder: function (active) {
             reminderActive = !!active;
             if (reminderActive) {
+                if (clockSleepActive) wakeClockSleep(true);
                 clearScheduler();
                 if (currentStatus !== "eating" && currentStatus !== "sleeping" && currentStatus !== "happy" && currentStatus !== "rain" && currentStatus !== "heat" && currentStatus !== "fan") setStatus("idle");
             } else if (!document.hidden && currentStatus === "idle") {
