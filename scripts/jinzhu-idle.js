@@ -31,9 +31,19 @@
     ["pointerdown", "keydown", "touchstart", "scroll", "focus"].forEach(function (name) {
         window.addEventListener(name, activity, { passive: name !== "keydown" });
     });
+    function startTimer() {
+        clearInterval(timer);
+        timer = setInterval(check, checkEvery);
+    }
     document.addEventListener("visibilitychange", function () {
-        if (!document.hidden) activity();
+        if (document.hidden) {
+            clearInterval(timer);
+            timer = null;
+            return;
+        }
+        activity();
+        startTimer();
     });
-    timer = setInterval(check, checkEvery);
+    startTimer();
     check();
 }());
