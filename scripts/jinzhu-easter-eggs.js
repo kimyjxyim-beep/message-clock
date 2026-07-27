@@ -29,6 +29,7 @@
         return [
             { id: "clock-peek", level: "small", weight: weather === "night" ? 4 : 2, cooldown: 5 * 60000, run: function (b) { return b.startClockAnchor("clock-peek"); } },
             { id: "message-peek", level: "small", weight: 2, cooldown: 6 * 60000, run: function (b) { return b.startMessageVisit("message-peek"); } },
+            { id: "colon-tap", level: "medium", weight: 2, cooldown: 20 * 60000, run: function (b) { return b.tapColon && b.tapColon(); } },
             { id: "clock-perch", level: "medium", weight: weather === "rain" ? 1 : 2, cooldown: 25 * 60000, run: function (b) { return b.startClockAnchor("clock-perch"); } },
             { id: "message-paw", level: "medium", weight: 2, cooldown: 30 * 60000, run: function (b) { return b.startMessagePat(); } },
             { id: "clock-nap", level: "medium", weight: weather === "night" ? 3 : 1, cooldown: 35 * 60000, run: function (b) { return b.startClockAnchor("clock-nap"); } },
