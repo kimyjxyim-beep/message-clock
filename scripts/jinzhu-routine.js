@@ -733,8 +733,10 @@
         if (Date.now() < Number(state.nextMessagePatAllowed || 0)) return false;
         state.nextMessagePatAllowed = Date.now() + randomBetween(15, 45) * 60000;
         saveState();
-        card.classList.add("jinzhu-msg-nudge");
-        setTimeout(function () { card.classList.remove("jinzhu-msg-nudge"); }, 900);
+        var items = card.querySelectorAll(".msg-item");
+        var target = items.length ? items[Math.floor(Math.random() * items.length)] : card;
+        target.classList.add("jinzhu-msg-nudge");
+        setTimeout(function () { target.classList.remove("jinzhu-msg-nudge"); }, 900);
         return true;
     }
 
@@ -757,7 +759,7 @@
     ];
 
     function reactToMessage(content) {
-        if (!content || currentStatus === "sleeping" || currentStatus === "eating" || climbing || perched) return;
+        if (!content || currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan" || climbing || perched || clockAnchorActive) return false;
         var text = String(content);
         for (var i = 0; i < messageKeywordRules.length; i++) {
             var rule = messageKeywordRules[i];
@@ -769,13 +771,16 @@
                 else if (Math.random() < .5) say("喵。");
                 schedule(randomBetween(3, 6) * 1000, function () { idleFor(30, 90); });
             }
-            break;
+            return true;
         }
+        return false;
     }
 
     window.addEventListener("jinzhu:message", function (event) {
         var detail = event && event.detail;
-        if (detail && detail.content) reactToMessage(detail.content);
+        if (!detail || !detail.content) return;
+        var matched = reactToMessage(detail.content);
+        if (!matched && Math.random() < .16) startMessageVisit(Math.random() < .5 ? "message-peek" : "message-sit", false);
     });
 
     function endClockAnchor() {
@@ -875,6 +880,17 @@
         }, true);
         updateClockAnchorOverlay();
         saveState();
+        return true;
+    }
+
+    function tapColon(force) {
+        var colon = document.querySelector(".colon");
+        if (!colon || (!force && (clockScratchActive || messageAnchorActive || currentStatus === "sleeping" || currentStatus === "rain" || currentStatus === "heat"))) return false;
+        if (!startClockAnchor("colon-sit", force)) return false;
+        schedule(3200, function () {
+            colon.classList.add("jinzhu-colon-tap");
+            setTimeout(function () { colon.classList.remove("jinzhu-colon-tap"); }, 1200);
+        }, true);
         return true;
     }
 
@@ -1583,7 +1599,15 @@
             startClockScratch(false);
         }
     });
-    window.addEventListener("jinzhu:clock-flip", function (event) { pullClockFlip(event && event.detail); });
+    window.addEventListener("jinzhu:clock-flip", function (event) {
+        if (pullClockFlip(event && event.detail)) return;
+        /* A normal flip almost always stays quiet.  The rare response is
+           independently gated by the existing anchor cooldown. */
+        if (Math.random() < .025) {
+            if (Math.random() < .45) tapColon(false);
+            else startClockAnchor("clock-peek", false);
+        }
+    });
 
     document.addEventListener("visibilitychange", function () {
         clearScheduler();
@@ -1637,7 +1661,7 @@
        gateway for wake/sleep priority. */
     function setExternalIdleLevel(level) {
         if (level === "sleep") {
-            if (currentStatus !== "sleeping" && !feedingPending && !reminderActive) startSleeping();
+            if (currentStatus !== "sleeping" && !feedingPending && !reminderActive && currentStatus !== "rain" && currentStatus !== "heat" && currentStatus !== "fan") startSleeping();
             return;
         }
         if (level === "drowsy") {
@@ -1664,7 +1688,7 @@
             };
         },
         isBusy: function () {
-                return feedingPending || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "fan" || climbing || perched || clockScratchActive;
+                return feedingPending || currentStatus === "eating" || currentStatus === "happy" || currentStatus === "sleeping" || currentStatus === "grooming" || currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan" || climbing || perched || clockScratchActive || !!clockAnchorActive || !!messageAnchorActive;
         },
         say: say,
         openInteractions: openInteractions,
@@ -1673,7 +1697,8 @@
         openMenu: openInteractions,
         closeMenu: closeInteractions,
         startClockClimb: function (force) { return startClockClimb(!!force); },
-        startClockAnchor: function (kind) { return startClockAnchor(kind, true); },
+        startClockAnchor: function (kind, force) { return startClockAnchor(kind, !!force); },
+        tapColon: function () { return tapColon(false); },
         startClockScratch: function () { return startClockScratch(true); },
         forceMove: function () { state.nextWalkAllowed = 0; startWalking(); },
         requestRain: requestRain,
