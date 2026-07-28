@@ -32,7 +32,6 @@
             { id: "colon-tap", level: "medium", weight: 2, cooldown: 20 * 60000, run: function (b) { return b.tapColon && b.tapColon(); } },
             { id: "clock-perch", level: "medium", weight: weather === "rain" ? 1 : 2, cooldown: 25 * 60000, run: function (b) { return b.startClockAnchor("clock-perch"); } },
             { id: "message-paw", level: "medium", weight: 2, cooldown: 30 * 60000, run: function (b) { return b.startMessagePat(); } },
-            { id: "clock-nap", level: "medium", weight: weather === "night" ? 3 : 1, cooldown: 35 * 60000, run: function (b) { return b.startClockAnchor("clock-nap"); } },
             { id: "clock-climb", level: "large", weight: hourEvent() ? 3 : 1, cooldown: 2 * 60 * 60000, run: function (b) { return b.startClockClimb && b.startClockClimb(false); } }
         ];
     }
