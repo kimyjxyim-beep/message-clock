@@ -251,6 +251,7 @@
         nextCurlSleepAllowed: now,
         nextSideSleepAllowed: now,
         nextClockSleepAllowed: now,
+        nextInteractivePlayingAllowed: 0,
         sleepUntil: 0,
         sleepPose: "",
         sleepNextPose: "",
@@ -2456,6 +2457,100 @@
         schedule(randomBetween(5, 10) * 1000, function () { idleFor(45, 120); });
     }
 
+    var INTERACTIVE_PLAY_CHANCE = .30;
+    var INTERACTIVE_PLAY_COOLDOWN_MS = 45 * 1000;
+    var testPlayingActive = false;
+
+    function testPlayingLog(message) {
+        if (actionTestMode && window.console && typeof window.console.log === "function") {
+            window.console.log("[Jinzhu Test] " + message);
+        }
+    }
+
+    function interactivePlayingBlocked(source) {
+        return currentStatus === "playing" ||
+            (source === "hover" && !panel.hidden) ||
+            feedingPending || reminderActive || rainActive ||
+            currentStatus === "eating" || currentStatus === "happy" ||
+            currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan" ||
+            isFormalSleepActive() || climbing || perched || clockScratchActive ||
+            !!clockAnchorActive || !!messageAnchorActive || !!activeNewActionName;
+    }
+
+    function startInteractivePlaying(force, source) {
+        if (force) {
+            if (isFormalSleepActive()) wakeFormalSleep(true);
+            if (activeNewActionName || clockAnchorActive || messageAnchorActive || clockScratchActive) {
+                clearScheduler();
+                clearNewActionLayers();
+                setStatus("idle");
+            }
+        }
+        if (interactivePlayingBlocked(source || "test")) return false;
+        if (!force && Date.now() < Number(state.nextInteractivePlayingAllowed || 0)) return false;
+        if (!force && Math.random() >= INTERACTIVE_PLAY_CHANCE) return false;
+        clearScheduler();
+        state.nextInteractivePlayingAllowed = Date.now() + INTERACTIVE_PLAY_COOLDOWN_MS;
+        setStatus("playing");
+        say(source === "pet" ? "摸到我啦，翻個身俾你睇下。" : "你搵到我呀，玩兩下先。");
+        schedule(randomBetween(5, 10) * 1000, function () { idleFor(45, 120); }, true);
+        saveState();
+        return true;
+    }
+
+    function maybeStartInteractivePlaying(source) {
+        return startInteractivePlaying(false, source);
+    }
+
+    /* The action-panel preview deliberately has a separate path from owner
+       interactions. It must be able to show the accepted roll sprites even
+       when rain or another interruptible routine is currently active. */
+    function finishTestPlaying() {
+        if (!testPlayingActive) return;
+        testPlayingActive = false;
+        clearScheduler();
+        if (rainActive) {
+            startRainWatching();
+            return;
+        }
+        setStatus("idle");
+        if (!reminderActive) idleFor(45, 120);
+    }
+
+    function clearInterruptibleStateForTestPlaying() {
+        clearScheduler();
+        if (isFormalSleepActive()) wakeFormalSleep(true);
+        if (clockScratchActive) finishClockScratch();
+        if (clockAnchorActive) endClockAnchor();
+        if (messageAnchorActive) endMessageAnchor();
+        clearScheduler();
+        clearNewActionLayers();
+        climbing = false;
+        perched = false;
+        feedingPending = false;
+        home.classList.remove("on-clock", "on-message");
+        home.style.removeProperty("--jinzhu-perch-scale");
+    }
+
+    function forcePlayActionForTest(action) {
+        if (action !== "playing") return false;
+        if (!actionTestMode) {
+            testPlayingLog("playing blocked by: test-mode-disabled");
+            return false;
+        }
+        if (testPlayingActive || currentStatus === "playing") {
+            testPlayingLog("playing blocked by: already-playing");
+            return false;
+        }
+        clearInterruptibleStateForTestPlaying();
+        testPlayingActive = true;
+        setStatus("playing");
+        testPlayingLog("playing started");
+        /* Six 420ms frames loop clearly for more than two full cycles. */
+        schedule(7200, finishTestPlaying, true);
+        return true;
+    }
+
     function startRainWatching() {
         if (!rainActive || activeNewActionName || currentStatus === "sleeping" || currentStatus === "eating" || currentStatus === "happy") return false;
         clearScheduler();
@@ -2814,6 +2909,12 @@
         clearScheduler();
         state.mood = clamp(state.mood + 5);
         state.bond = clamp(state.bond + 3);
+        if (maybeStartInteractivePlaying("pet")) {
+            window.dispatchEvent(new CustomEvent("jinzhu:interaction", { detail: { action: "pet" } }));
+            renderStats();
+            saveState();
+            return;
+        }
         setStatus("happy");
         say(immersiveLine("petted", "摸多两下都得嘅。"));
         finishInteraction(2200, true);
@@ -2868,7 +2969,10 @@
         markImmersiveInteraction();
         if (currentStatus === "walking" || climbing || currentStatus === "climbing" || currentStatus === "climbing-down") {
             if (feedingPending) say("我去食饭呀，等阵先。" );
-            else stopMovementAndLook();
+            else {
+                stopMovementAndLook();
+                if (maybeStartInteractivePlaying("click")) return;
+            }
             return;
         }
         if (currentStatus === "eating") {
@@ -2893,6 +2997,7 @@
             openInteractions();
             return;
         }
+        if (maybeStartInteractivePlaying("click")) return;
         if (roll < .60) {
             var lines = state.fullness < 25 ? ["个饭碗好似空咗喔。", "有少少肚饿呀。"] :
                 ["我喺度陪你呀。", "今日有冇乖乖饮水？", "我行过嚟睇下你。", "你做你嘅，我坐阵先。", "做咩又搵我呀？"];
@@ -2939,6 +3044,14 @@
     cat.addEventListener("mousedown", function (event) { beginLongPress(event.clientX, event.clientY); });
     cat.addEventListener("mouseup", endLongPress);
     cat.addEventListener("mouseleave", endLongPress);
+    if (window.PointerEvent) {
+        cat.addEventListener("pointerenter", function (event) {
+            if (event.pointerType && event.pointerType !== "mouse") return;
+            maybeStartInteractivePlaying("hover");
+        });
+    } else {
+        cat.addEventListener("mouseenter", function () { maybeStartInteractivePlaying("hover"); });
+    }
     cat.addEventListener("contextmenu", function (event) {
         event.preventDefault();
         suppressClickUntil = Date.now() + 800;
@@ -3317,6 +3430,8 @@
         startSunbathe: function () { return startSunbathe(true); },
         startCatGrass: function (reason) { return startCatGrass(true, reason || "test"); },
         startSleepPose: function (pose) { return startFormalSleep(pose, true, false); },
+        startInteractivePlaying: function () { return startInteractivePlaying(true, "test"); },
+        forcePlayActionForTest: forcePlayActionForTest,
         resumeFreeRoam: function () {
             if (wakeFormalSleep(false)) return;
             clearScheduler();
@@ -3443,7 +3558,7 @@
         box.innerHTML = "<div class=\"jinzhu-action-test-header\" data-test-panel-drag><b>金主動作測試</b><button type=\"button\" data-test-panel-toggle aria-expanded=\"true\">收起</button></div><div class=\"jinzhu-action-test-content\"></div>";
         testPanelBox = box;
         var content = box.querySelector(".jinzhu-action-test-content");
-        var actions = [["自由隨機走動", "move"], ["向左走", "left"], ["向右走", "right"], ["回頭", "turn"], ["伸懶腰", "stretch"], ["趴低", "crouch"], ["蜷縮睡", "curl-sleep"], ["側睡", "side-sleep"], ["抬頭看時鐘", "look-clock"], ["卡片後探頭", "card-peek"], ["前爪搭住留言板", "paw-rest-message"], ["前爪搭住天氣卡", "paw-rest-weather"], ["拍一下", "paw-tap"], ["磨抓數字", "scratch-digits"], ["跳上時鐘", "jump-clock"], ["趴在時鐘上睡", "lie-clock"], ["曬太陽", "sunbathe"], ["食貓草", "cat-grass"], ["模擬雨停後長出貓草", "rain-stop-grass"], ["恢復日常自由活動", "resume"]];
+        var actions = [["自由隨機走動", "move"], ["向左走", "left"], ["向右走", "right"], ["回頭", "turn"], ["伸懶腰", "stretch"], ["趴低", "crouch"], ["翻滾／玩耍", "interactive-playing"], ["蜷縮睡", "curl-sleep"], ["側睡", "side-sleep"], ["抬頭看時鐘", "look-clock"], ["卡片後探頭", "card-peek"], ["前爪搭住留言板", "paw-rest-message"], ["前爪搭住天氣卡", "paw-rest-weather"], ["拍一下", "paw-tap"], ["磨抓數字", "scratch-digits"], ["跳上時鐘", "jump-clock"], ["趴在時鐘上睡", "lie-clock"], ["曬太陽", "sunbathe"], ["食貓草", "cat-grass"], ["模擬雨停後長出貓草", "rain-stop-grass"], ["恢復日常自由活動", "resume"]];
         actions.forEach(function (item) { var button = document.createElement("button"); button.type = "button"; button.textContent = item[0]; button.setAttribute("data-action", item[1]); content.appendChild(button); });
         box.addEventListener("click", function (event) {
             if (event.target.closest("[data-test-panel-toggle]")) {
@@ -3459,6 +3574,12 @@
             if (action === "curl-sleep") return window.JinzhuBridge.startSleepPose("curl");
             if (action === "side-sleep") return window.JinzhuBridge.startSleepPose("side");
             if (action === "lie-clock") return window.JinzhuBridge.startSleepPose("clock");
+            if (action === "interactive-playing") {
+                event.preventDefault();
+                event.stopPropagation();
+                testPlayingLog("playing button clicked");
+                return window.JinzhuBridge.forcePlayActionForTest("playing");
+            }
             if (action === "move") { clearNewActionLayers(); return window.JinzhuBridge.forceMove(); }
             if (action === "left" || action === "right") {
                 clearScheduler();
