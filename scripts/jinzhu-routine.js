@@ -1174,31 +1174,32 @@
 
     function chooseSleepPose() {
         var timestamp = Date.now();
-        var period = routinePeriod();
         var minute = sleepMinuteOfDay();
-        var inactivityMinutes = Math.max(0, timestamp - lastSleepActivityAt()) / 60000;
-        var idleSleepDelayMinutes = IDLE_SLEEP_DELAY_MS / 60000;
-        var lowEnergy = Math.max(0, 55 - Number(state.energy || 0)) / 55;
+        var weights;
+        if (minute >= 780 && minute < 1080) {
+            weights = { clock: .58, side: .27, curl: .15 };
+        } else if (minute >= 1080 && minute < 1260) {
+            weights = { side: .50, curl: .35, clock: .15 };
+        } else if (minute < 390 || minute >= 1260) {
+            weights = { curl: .80, side: .15, clock: .05 };
+        } else {
+            weights = { curl: .60, side: .25, clock: .15 };
+        }
 
+        /* Draw once from the poses currently available; sequential chance
+           checks previously made side sleep depend on clock sleep failing. */
+        var choices = [["curl", weights.curl]];
+        if (timestamp >= Number(state.nextSideSleepAllowed || 0)) {
+            choices.push(["side", weights.side]);
+        }
         if (timestamp >= Number(state.nextClockSleepAllowed || 0)) {
-            var afternoonNap = minute >= 780 && minute <= 1080;
-            var clockChance = afternoonNap ? .78 :
-                period === "night" || period === "wind-down" ? .15 :
-                period === "evening" ? .20 : period === "morning" ? .06 : .10;
-            clockChance += Math.min(.05, Math.max(0, inactivityMinutes - idleSleepDelayMinutes) / 180);
-            clockChance += lowEnergy * .05;
             var clockGeometry = clockInteractionGeometry(chooseClockSide());
-            if (clockGeometry && clockGeometry.topFits && Math.random() < Math.min(.88, clockChance)) return "clock";
+            if (clockGeometry && clockGeometry.topFits) choices.push(["clock", weights.clock]);
         }
-
-        if (minute >= 510 && minute <= 1200 && timestamp >= Number(state.nextSideSleepAllowed || 0)) {
-            var sideChance = minute >= 780 && minute <= 1080 ? .35 :
-                period === "morning" ? .28 : period === "day" ? .22 :
-                period === "evening" ? .14 : .08;
-            sideChance += Math.min(.05, Math.max(0, inactivityMinutes - idleSleepDelayMinutes) / 180);
-            if (Math.random() < sideChance) return "side";
-        }
-        return "curl";
+        var total = choices.reduce(function (sum, choice) { return sum + choice[1]; }, 0);
+        return weightedChoice(choices.map(function (choice) {
+            return [choice[0], choice[1] / total];
+        }));
     }
 
     function finishTimedSleep(pose) {
