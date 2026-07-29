@@ -1,6 +1,10 @@
 desktop-overlay/node_modules/
 desktop-overlay/dist/
 
+# macOS Finder metadata
+.DS_Store
+**/.DS_Store
+
 # Local workspaces and generated output; these are not part of GitHub Pages.
 KY-Workspace/
 KY-Asset-Lab/
