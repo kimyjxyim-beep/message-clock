@@ -325,6 +325,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     position: fixed;
     left: 0;
     top: 0;
+    width: 116px;
+    height: 116px;
     width: var(--jinzhu-size);
     height: var(--jinzhu-size);
     transform: translate3d(var(--jinzhu-x), var(--jinzhu-y), 0);
@@ -335,6 +337,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     pointer-events: none;
 }
 .jinzhu-cat {
+    width: 116px;
+    height: 116px;
     width: var(--jinzhu-size);
     height: var(--jinzhu-size);
     padding: 0;
@@ -361,8 +365,14 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     transform-origin: 50% 50%;
 }
 .jinzhu-home.jinzhu-real-clock-action .jinzhu-walker { z-index: 31; }
+/* .jinzhu-home is itself a z-indexed flex item, so the action class must move
+   that parent stacking context as well as its fixed child. */
+.jinzhu-home.jinzhu-real-card-peek { z-index: 16; }
 .jinzhu-home.jinzhu-real-card-peek .jinzhu-walker { z-index: 16; }
-.jinzhu-home.jinzhu-real-card-grip .jinzhu-walker { z-index: 18; }
+.jinzhu-home.jinzhu-real-card-grip,
+.jinzhu-home.message-paw { z-index: 18; }
+.jinzhu-home.jinzhu-real-card-grip .jinzhu-walker,
+.jinzhu-home.message-paw .jinzhu-walker { z-index: 20; }
 .jinzhu-home.jinzhu-lifestyle-action .jinzhu-walker { z-index: 22; }
 .jinzhu-home.jinzhu-lifestyle-action .jinzhu-cat img {
     image-rendering: pixelated;
@@ -430,6 +440,8 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     z-index: 17;
 }
 .jinzhu-cat img {
+    width: 108px;
+    height: 108px;
     width: var(--jinzhu-image-size);
     height: var(--jinzhu-image-size);
     object-fit: contain;
@@ -529,6 +541,16 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 .jinzhu-action-test.is-collapsed .jinzhu-action-test-header b,
 .jinzhu-action-test.is-collapsed .jinzhu-action-test-content { display: none; }
 .jinzhu-action-test.is-collapsed .jinzhu-action-test-header button { margin: 0; }
+@media (max-width: 720px) {
+    .jinzhu-action-test {
+        width: min(230px, calc(100vw - 16px));
+        padding: 6px;
+        border-radius: 12px;
+        font-size: 11px;
+    }
+    .jinzhu-action-test-content { max-height: calc(38vh - 42px); }
+    .jinzhu-action-test button { margin: 2px; padding: 6px 7px; }
+}
 .flip-card.jinzhu-clock-tapped {
     animation: jinzhu-clock-tap-response .42s cubic-bezier(.22,.72,.34,1);
     transform-origin: 50% 78%;
@@ -856,6 +878,36 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     }
 }
 
+/* 窄桌面視窗：卡片、數字與半頁偏移共用同一組 viewport 尺寸，
+   並禁止 flex 只壓縮卡片寬度而留下桌面高度。手機規則保持不變。 */
+@media screen and (min-width: 501px) and (max-width: 1024px) {
+    .clock {
+        --clock-card-width: min(390px, calc(47.5vw - 40px));
+        --clock-card-height: min(430px, calc(52.25vw - 44px));
+        --clock-number-size: min(280px, calc(34vw - 29px));
+        --clock-half-offset: max(-215px, calc(-26.125vw + 22px));
+    }
+    .clock > div { margin-left: 8px; margin-right: 8px; }
+    .flip-card {
+        width: var(--clock-card-width);
+        height: var(--clock-card-height);
+        flex: 0 0 var(--clock-card-width);
+    }
+    .card-half .num,
+    .leaf .num {
+        height: var(--clock-card-height);
+        font-size: var(--clock-number-size);
+    }
+    .card-half.bottom .num,
+    .leaf.back .num {
+        top: var(--clock-half-offset);
+    }
+    .colon {
+        flex: 0 0 auto;
+        font-size: clamp(50px, calc(6.69vw + 2px), 70px);
+    }
+}
+
 /* iPad mini 1 / 舊版 iOS Safari：避免 absolute + flex + vw 的半頁取整誤差 */
 @media screen and (min-width: 700px) and (max-width: 800px) and (min-height: 900px) {
     .flip-card {
@@ -890,6 +942,25 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .leaf.back .num {
         top: -215px;
     }
+}
+
+/* 桌面瀏覽器縮到接近手機寬度時，沿用相容的單欄卡片排列；
+   金主尺寸與已驗收的手機互動仍由 600px 規則控制。 */
+@media screen and (min-width: 601px) and (max-width: 720px) {
+    .container {
+        margin-top: 4vh;
+        margin-bottom: 4vh;
+    }
+    .header-section { margin-bottom: 35px; }
+    .widget-section {
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        gap: 0;
+    }
+    .left-col, .right-col { width: 100%; }
+    .left-col { margin-bottom: 8px; }
+    .card { padding: 20px; border-radius: 20px; }
 }
 
 /* ====================
@@ -935,9 +1006,12 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .left-col, .right-col { width: 100%; }
     .left-col { margin-bottom: 8px; }
     .jinzhu-home {
-        --jinzhu-size: 110px;
-        --jinzhu-image-size: 104px;
+        --jinzhu-size: 96px;
+        --jinzhu-image-size: 92px;
     }
+    .jinzhu-walker,
+    .jinzhu-cat { width: 96px; height: 96px; }
+    .jinzhu-cat img { width: 92px; height: 92px; }
     /* Frame changes already express the movement on phones.  Removing the
        extra CSS bounce prevents a second transform animation from fighting
        the slower sprite cadence on mobile Safari. */
@@ -956,6 +1030,50 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .weather-main { font-size: 28px; }
     .msg-item { font-size: 16px; }
 }
+
+/* 501–600px 仍使用手機單欄結構，但解除 200 × 220px 上限造成的
+   卡片、數字與半頁偏移不同步；尺寸來源與窄桌面完全相同。 */
+@media screen and (min-width: 501px) and (max-width: 600px) {
+    .clock > div { margin-left: 8px; margin-right: 8px; }
+    .flip-card {
+        width: var(--clock-card-width);
+        height: var(--clock-card-height);
+        max-width: none;
+        max-height: none;
+        flex: 0 0 var(--clock-card-width);
+    }
+    .card-half .num,
+    .leaf .num {
+        height: var(--clock-card-height);
+        max-height: none;
+        font-size: var(--clock-number-size);
+    }
+    .card-half.bottom .num,
+    .leaf.back .num {
+        top: var(--clock-half-offset);
+        max-height: none;
+    }
+}
+
+@media (max-width: 360px) {
+    .jinzhu-home {
+        --jinzhu-size: 88px;
+        --jinzhu-image-size: 84px;
+    }
+    .jinzhu-walker,
+    .jinzhu-cat { width: 88px; height: 88px; }
+    .jinzhu-cat img { width: 84px; height: 84px; }
+}
+
+/* iPad mini 1 tops out at an old Safari/WebKit build. Keep the core cards and
+   pet, but avoid filters that add full-screen compositing work. */
+html.jinzhu-old-ipad .card {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+html.jinzhu-old-ipad .jinzhu-cat,
+html.jinzhu-old-ipad .jinzhu-sun-patch { filter: none; }
+html.jinzhu-old-ipad .weather-effects i { display: none; }
 
 /* Final overrides: keep Chinese dialogue horizontal and controls compact. */
 .jinzhu-bubble {

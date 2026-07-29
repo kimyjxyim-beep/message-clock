@@ -52,6 +52,7 @@
     var currentStatus = "idle";
     var currentPosition = { x: 0, y: 0 };
     var legacyPosition = false;
+    var positionSupportChecked = false;
     var legacyMoveFrame = null;
     var legacyMoveToken = 0;
     var lastTapAt = 0;
@@ -77,6 +78,7 @@
     var oldIPad = /iPad.*OS (?:[1-9]|10)_/i.test(navigator.userAgent || "");
     var lowPowerDevice = oldIPad || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2);
     var simpleMotion = lowPowerDevice;
+    if (oldIPad) document.documentElement.className += " jinzhu-old-ipad";
     var climbing = false;
     var perched = false;
     var clockAnchorActive = "";
@@ -460,8 +462,9 @@
     }
 
     function updateBubblePlacement() {
-        var spaceOnRight = window.innerWidth - (currentPosition.x + walker.offsetWidth);
-        var bubbleWidth = Math.min(window.innerWidth - 16, window.innerWidth <= 600 ? 180 : 210);
+        var viewport = viewportSize();
+        var spaceOnRight = viewport.width - (currentPosition.x + walker.offsetWidth);
+        var bubbleWidth = Math.min(viewport.width - 16, viewport.width <= 600 ? 180 : 210);
         var spaceOnLeft = currentPosition.x;
         var useRight = spaceOnRight >= bubbleWidth + 8;
         var useLeft = !useRight && spaceOnLeft >= bubbleWidth + 8;
@@ -506,8 +509,13 @@
         var height = vv && Number(vv.height);
         if (!isFinite(width) || width < 120) width = Number(window.innerWidth) || Number(document.documentElement.clientWidth) || 390;
         if (!isFinite(height) || height < 120) height = Number(window.innerHeight) || Number(document.documentElement.clientHeight) || 844;
-        return { width: Math.max(320, width), height: Math.max(320, height), usedFallback: !(vv && isFinite(Number(vv.width)) && isFinite(Number(vv.height))) };
+        return {
+            width: Math.max(120, width),
+            height: Math.max(120, height),
+            usedFallback: !(vv && isFinite(Number(vv.width)) && isFinite(Number(vv.height)))
+        };
     }
+
     function getViewportBounds() {
         var petWidth = walker.offsetWidth || 116;
         var petHeight = walker.offsetHeight || 116;
@@ -518,11 +526,20 @@
             8,
             parseFloat(rootStyle.getPropertyValue("--safe-bottom")) || 0
         );
+        var compact = viewport.width <= 600 || viewport.height <= 480;
+        var visibleWidth = compact ? Math.min(petWidth, Math.max(56, petWidth * .72)) : petWidth;
+        var visibleHeight = compact ? Math.min(petHeight, Math.max(60, petHeight * .68)) : petHeight;
+        var minX = 8 - (petWidth - visibleWidth);
+        var maxX = viewport.width - visibleWidth - 8;
+        var minY = safeTop;
+        var maxY = viewport.height - visibleHeight - safeBottom - 8;
+        if (maxX < minX) minX = maxX = (viewport.width - petWidth) / 2;
+        if (maxY < minY) minY = maxY = Math.max(0, (viewport.height - petHeight) / 2);
         return {
-            minX: 8,
-            maxX: Math.max(24, viewport.width - petWidth - 8),
-            minY: safeTop,
-            maxY: Math.max(safeTop + 24, viewport.height - petHeight - safeBottom - 8)
+            minX: minX,
+            maxX: maxX,
+            minY: minY,
+            maxY: maxY
         };
     }
 
@@ -531,8 +548,8 @@
             a.bottom + margin <= b.top || a.top - margin >= b.bottom);
     }
 
-    function clampPosition(position) {
-        var bounds = getViewportBounds();
+    function clampPosition(position, knownBounds) {
+        var bounds = knownBounds || getViewportBounds();
         var fallbackX = bounds.minX + (bounds.maxX - bounds.minX) * .5;
         var fallbackY = bounds.minY + (bounds.maxY - bounds.minY) * .62;
         var x = Number(position && position.x), y = Number(position && position.y);
@@ -544,8 +561,9 @@
         };
     }
 
-    function setPosition(position, duration, persist) {
-        var safe = clampPosition(position);
+    function setPosition(position, duration, persist, knownBounds, quiet) {
+        var bounds = knownBounds || getViewportBounds();
+        var safe = clampPosition(position, bounds);
         if (safe.x < currentPosition.x) home.style.setProperty("--jinzhu-facing", "-1");
         if (safe.x > currentPosition.x) home.style.setProperty("--jinzhu-facing", "1");
         home.style.setProperty("--jinzhu-walk-duration", duration + "ms");
@@ -553,7 +571,8 @@
         home.style.setProperty("--jinzhu-y", Math.round(safe.y) + "px");
         // iPad mini 1 / iOS 9 does not support CSS custom properties. Keep a
         // direct left/top fallback so the pet is not stuck at (0, 0).
-        if (!legacyPosition) {
+        if (!positionSupportChecked) {
+            positionSupportChecked = true;
             var probe = getComputedStyle(home).getPropertyValue("--jinzhu-x");
             legacyPosition = oldIPad || !probe;
             if (legacyPosition) home.className += " jinzhu-legacy-position";
@@ -595,11 +614,10 @@
         }
         currentPosition = safe;
         if (bubble.classList.contains("show")) updateBubblePlacement();
-        var bounds = getViewportBounds();
         state.positionX = bounds.maxX > bounds.minX ? (safe.x - bounds.minX) / (bounds.maxX - bounds.minX) : 0;
         state.positionY = bounds.maxY > bounds.minY ? (safe.y - bounds.minY) / (bounds.maxY - bounds.minY) : 0;
         if (persist !== false) saveState();
-        window.dispatchEvent(new CustomEvent("jinzhu:position", { detail: { x: safe.x, y: safe.y } }));
+        if (!quiet) window.dispatchEvent(new CustomEvent("jinzhu:position", { detail: { x: safe.x, y: safe.y } }));
     }
 
     function restoredPosition() {
@@ -651,10 +669,49 @@
         return element.getBoundingClientRect();
     }
 
+    function rectHasVisibleArea(rect) {
+        if (!rect || !isFinite(rect.left) || !isFinite(rect.top) || !rect.width || !rect.height) return false;
+        var viewport = viewportSize();
+        var visibleWidth = Math.min(rect.right, viewport.width) - Math.max(rect.left, 0);
+        var visibleHeight = Math.min(rect.bottom, viewport.height) - Math.max(rect.top, 0);
+        return visibleWidth >= Math.min(32, rect.width * .2) &&
+            visibleHeight >= Math.min(32, rect.height * .2);
+    }
+
+    function petRectAt(point) {
+        var width = walker.offsetWidth || 116;
+        var height = walker.offsetHeight || 116;
+        return {
+            left: point.x,
+            top: point.y,
+            right: point.x + width,
+            bottom: point.y + height
+        };
+    }
+
+    function petVisibleRatio(point) {
+        var rect = petRectAt(point);
+        var viewport = viewportSize();
+        var visibleWidth = Math.max(0, Math.min(rect.right, viewport.width) - Math.max(rect.left, 0));
+        var visibleHeight = Math.max(0, Math.min(rect.bottom, viewport.height) - Math.max(rect.top, 0));
+        var area = (rect.right - rect.left) * (rect.bottom - rect.top);
+        return area > 0 ? visibleWidth * visibleHeight / area : 0;
+    }
+
+    function compactCardLayout(rect) {
+        var viewport = viewportSize();
+        return viewport.width <= 600 || rect.width >= viewport.width * .82;
+    }
+
+    function clampShift(raw, clamped) {
+        return Math.max(Math.abs(raw.x - clamped.x), Math.abs(raw.y - clamped.y));
+    }
+
     function pointNear(selector, side) {
         var element = document.querySelector(selector);
         if (!element) return null;
         var rect = visibleRect(element);
+        if (!rectHasVisibleArea(rect)) return null;
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
         var x = side === "left" ? rect.left - w * .55 : rect.right - w * .45;
@@ -665,6 +722,7 @@
         var element = document.querySelector(selector);
         if (!element) return null;
         var rect = visibleRect(element);
+        if (!rectHasVisibleArea(rect)) return null;
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
         // The paws overlap the casing by only a few pixels: the cat is on top,
@@ -725,6 +783,7 @@
         var clock = document.querySelector(".clock");
         if (!clock) return null;
         var rect = visibleRect(clock);
+        if (!rectHasVisibleArea(rect)) return null;
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
         var bounds = getViewportBounds();
@@ -732,12 +791,14 @@
         home.style.setProperty("--jinzhu-perch-scale", perchScale.toFixed(3));
         var useLeft = currentPosition.x < rect.left + rect.width / 2;
         var edgeX = useLeft ? rect.left - w * .38 : rect.right - w * .62;
+        var top = clampPosition({ x: useLeft ? rect.left + 8 : rect.right - w - 8, y: rect.top - h + 14 });
         return {
             base: clampPosition({ x: edgeX, y: rect.bottom - h * .32 }),
             edge: clampPosition({ x: edgeX, y: rect.top + rect.height * .32 }),
-            top: clampPosition({ x: useLeft ? rect.left + 8 : rect.right - w - 8, y: rect.top - h + 14 }),
+            top: top,
             landing: clampPosition({ x: useLeft ? rect.left - w - 12 : rect.right + 12, y: rect.bottom - h * .18 }),
-            facing: useLeft ? 1 : -1
+            facing: useLeft ? 1 : -1,
+            topFits: overlaps(petRectAt(top), rect, 0)
         };
     }
 
@@ -765,7 +826,10 @@
 
     function clockAnchorPoint(kind) {
         var points = clockDigitRects(), w = walker.offsetWidth || 116, h = walker.offsetHeight || 116;
-        if (!points.length) return pointOnTop(".clock");
+        if (!points.length) {
+            var fallback = pointOnTop(".clock");
+            return fallback ? { point: fallback, target: null } : null;
+        }
         var choices = points.filter(function (item) { return item.name !== "colon"; });
         var target = choices[Math.floor(Math.random() * choices.length)] || points[0];
         if (kind === "clock-hook") {
@@ -774,15 +838,19 @@
         } else if (kind === "colon-sit") {
             for (var c = 0; c < points.length; c++) if (points[c].name === "colon") target = points[c];
         }
-        if (!target || !target.rect) return pointOnTop(".clock");
+        if (!target || !target.rect) return null;
         var card = target.name.indexOf("hour-") === 0 ? document.getElementById("hour-card") : document.getElementById("minute-card");
         var cardRect = card ? card.getBoundingClientRect() : target.rect;
         var rect = cardRect && cardRect.width ? cardRect : target.rect, point;
+        if (!rectHasVisibleArea(rect)) return null;
         if (kind === "clock-hook") point = { x: rect.left - w * .38, y: rect.top + rect.height * .25 - h * .16 };
         else if (kind === "clock-peek") point = { x: rect.right - w * .55, y: rect.top - h * .50 };
         else if (kind === "colon-sit") point = { x: target.rect.left + target.rect.width * .5 - w * .5, y: rect.top - h * .65 };
         else point = { x: rect.left + rect.width * .5 - w * .5, y: rect.top - h * .78 };
-        return { point: clampPosition(point), target: target };
+        point = clampPosition(point);
+        var contactRect = kind === "colon-sit" ? target.rect : rect;
+        if (!overlaps(petRectAt(point), contactRect, 0)) return null;
+        return { point: point, target: target };
     }
 
     function updateClockAnchorOverlay() {
@@ -821,11 +889,16 @@
         var card = messageBoardEl();
         if (!card) return null;
         var rect = card.getBoundingClientRect();
-        if (!rect.width || !rect.height) return null;
+        if (!rectHasVisibleArea(rect)) return null;
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
         var point;
-        if (kind === "message-peek") {
+        if (kind === "message-paw" && compactCardLayout(rect)) {
+            var edge = chooseCardGripEdge("message", card);
+            var geometry = edge && cardGripGeometry("message", edge);
+            if (!geometry || !geometry.fits) return null;
+            return { point: geometry.grip, rect: rect, edge: edge };
+        } else if (kind === "message-peek") {
             // 从留言板左上方探头，身体大部分留在卡片后面
             point = { x: rect.left - w * .30, y: rect.top - h * .55 };
         } else if (kind === "message-paw") {
@@ -835,7 +908,9 @@
             // message-sit：坐在留言板右下边缘
             point = { x: rect.right - w * .55, y: rect.bottom - h * .30 };
         }
-        return { point: clampPosition(point), rect: rect };
+        point = clampPosition(point);
+        if (!overlaps(petRectAt(point), rect, 0)) return null;
+        return { point: point, rect: rect };
     }
 
     function endMessageAnchor() {
@@ -847,7 +922,7 @@
         schedule(randomBetween(45, 120) * 1000, chooseNextBehavior);
     }
 
-    function startMessageVisit(kind, force) {
+    function startMessageVisit(kind, force, onContact) {
         if (!force && (Date.now() < Number(state.nextMessageVisitAllowed || 0) || reminderActive || panel.hidden === false || reduceMotion.matches)) return false;
         if (feedingPending || currentStatus === "eating" || isFormalSleepActive() || currentStatus === "sleepy" || currentStatus === "rain" || currentStatus === "heat" || currentStatus === "fan" || climbing || perched || clockAnchorActive) return false;
         var anchor = messageAnchorPoint(kind);
@@ -858,10 +933,15 @@
         state.nextMessageVisitAllowed = Date.now() + randomBetween(10, 45) * 60000;
         home.classList.add("on-message");
         setStatus("walking");
-        setPosition(anchor.point, scaledDuration(randomBetween(2, 4) * 1000), false);
-        schedule(2600, function () {
+        var travelDuration = scaledDuration(randomBetween(2, 4) * 1000);
+        setPosition(anchor.point, travelDuration, false);
+        schedule(travelDuration + 80, function () {
             if (!messageAnchorActive) return;
+            var contactAnchor = messageAnchorPoint(kind);
+            if (!contactAnchor) { endMessageAnchor(); return; }
+            setPosition(contactAnchor.point, 0, false);
             setStatus(kind);
+            if (onContact) onContact();
             if (kind === "message-peek") say("边度有新留言呀？");
             else if (Math.random() < .3) say("睇下大家讲咗啲乜。");
             messageAnchorTimer = setTimeout(endMessageAnchor, debugMode ? 3500 : randomBetween(15, 50) * 1000);
@@ -902,12 +982,10 @@
     }
 
     function startMessagePat(force) {
-        if (!startMessageVisit("message-paw", force)) return false;
-        schedule(3200, function () {
+        return startMessageVisit("message-paw", force, function () {
             nudgeMessageBoard();
             spawnMessagePawPrint();
-        }, true);
-        return true;
+        });
     }
 
     // 留言关键词反应：只做本机规则匹配，留言内容不会送去任何外部 AI 接口
@@ -963,11 +1041,12 @@
         var rect = card.getBoundingClientRect();
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
-        if (!rect.width || !rect.height) return null;
-        return clampPosition({
+        if (!rectHasVisibleArea(rect)) return null;
+        var point = clampPosition({
             x: rect.left - w * .56,
             y: rect.top + rect.height * .22 - h * .08
         });
+        return overlaps(petRectAt(point), rect, 0) ? point : null;
     }
 
     function finishClockScratch() {
@@ -1070,7 +1149,7 @@
 
     function startClockDescent() {
         var geometry = clockClimbGeometry();
-        if (!geometry) {
+        if (!geometry || !geometry.topFits) {
             perched = false;
             home.classList.remove("on-clock");
             idleFor(30, 90);
@@ -1095,7 +1174,7 @@
         if (clockScratchActive || climbing || perched || messageAnchorActive || isFormalSleepActive() || currentStatus === "sleepy" || reduceMotion.matches || simpleMotion || reminderActive || panel.hidden === false) return false;
         if (!force && Date.now() < Number(state.nextClimbAllowed || 0)) return false;
         var geometry = clockClimbGeometry();
-        if (!geometry) return false;
+        if (!geometry || !geometry.topFits) return false;
         clearScheduler();
         climbing = true;
         state.nextClimbAllowed = Date.now() + randomBetween(5, 10) * 60000;
@@ -1117,14 +1196,15 @@
     }
 
     function prepareOverlays() {
+        var viewport = viewportSize();
         var desiredPanelWidth = panel.classList.contains("jinzhu-chat-open") ? 320 : panel.classList.contains("jinzhu-care-open") ? 276 : 278;
-        var panelHalf = Math.min(desiredPanelWidth / 2, (window.innerWidth - 16) / 2);
-        var centeredX = Math.max(panelHalf + 8, Math.min(window.innerWidth - panelHalf - 8,
+        var panelHalf = Math.min(desiredPanelWidth / 2, (viewport.width - 16) / 2);
+        var centeredX = Math.max(panelHalf + 8, Math.min(viewport.width - panelHalf - 8,
             currentPosition.x + (walker.offsetWidth || 116) / 2));
         if (!panel.hidden) setPosition({ x: centeredX - (walker.offsetWidth || 116) / 2, y: currentPosition.y }, 0, false);
-        var panelHeight = panel.hidden ? 132 : Math.min(panel.scrollHeight || panel.offsetHeight || 240, window.innerHeight * .68);
-        var overlayBottomGap = window.innerWidth <= 600 ? 36 : 8;
-        home.classList.toggle("panel-above", currentPosition.y + (walker.offsetHeight || 116) + panelHeight > window.innerHeight - overlayBottomGap);
+        var panelHeight = panel.hidden ? 132 : Math.min(panel.scrollHeight || panel.offsetHeight || 240, viewport.height * .68);
+        var overlayBottomGap = viewport.width <= 600 ? 36 : 8;
+        home.classList.toggle("panel-above", currentPosition.y + (walker.offsetHeight || 116) + panelHeight > viewport.height - overlayBottomGap);
     }
 
     function weightedChoice(entries) {
@@ -1376,6 +1456,7 @@
     var clockTapTimer = null;
     var activeCardGripKind = "";
     var activeCardGripSide = "left";
+    var activeCardPeekEdge = "";
     var activeGripTarget = null;
     var cardGripTimer = null;
     var activeScratchDigit = null;
@@ -1437,6 +1518,7 @@
         if (activeGripTarget) activeGripTarget.classList.remove("jinzhu-card-gripped");
         activeGripTarget = null;
         activeCardGripKind = "";
+        activeCardPeekEdge = "";
         clearTimeout(scratchDigitTimer);
         scratchDigitTimer = null;
         scratchEffectTimers.forEach(clearTimeout);
@@ -1474,31 +1556,90 @@
         return choices.length ? choices[0].kind : "";
     }
 
-    function chooseCardGripSide(element) {
+    function chooseCardGripEdge(kind, element) {
         var rect = element.getBoundingClientRect();
         var catX = currentPosition.x + (walker.offsetWidth || 116) / 2;
-        return Math.abs(catX - rect.left) <= Math.abs(catX - rect.right) ? "left" : "right";
+        if (!compactCardLayout(rect)) {
+            return Math.abs(catX - rect.left) <= Math.abs(catX - rect.right) ? "left" : "right";
+        }
+        var viewport = viewportSize();
+        var horizontal = viewport.width - rect.right >= rect.left ? ["right", "left"] : ["left", "right"];
+        var edges = ["top", horizontal[0], horizontal[1], "bottom"];
+        for (var i = 0; i < edges.length; i++) {
+            var geometry = cardGripGeometry(kind, edges[i]);
+            if (geometry && geometry.fits) return edges[i];
+        }
+        return "";
     }
 
     function cardGripGeometry(kind, side) {
         var element = cardGripElement(kind);
         if (!element) return null;
         var rect = element.getBoundingClientRect();
-        if (!rect.width || !rect.height) return null;
+        if (!rectHasVisibleArea(rect)) return null;
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
-        var contactY = rect.top + Math.min(rect.height * .26, 50) - h * .50;
+        var compact = compactCardLayout(rect);
+        var rawApproach;
+        var rawGrip;
+        var contact;
+        if (side === "top" || side === "bottom") {
+            var inset = Math.min(16, rect.width * .08);
+            var minimumX = rect.left + inset;
+            var maximumX = rect.right - w - inset;
+            var x = maximumX >= minimumX
+                ? Math.max(minimumX, Math.min(maximumX, currentPosition.x))
+                : rect.left + (rect.width - w) / 2;
+            if (side === "top") {
+                rawApproach = { x: x, y: rect.top - h - 14 };
+                rawGrip = { x: x, y: rect.top - h * .76 };
+                contact = { x: x + w * .5, y: rawGrip.y + h * .76 };
+            } else {
+                rawApproach = { x: x, y: rect.bottom + 14 };
+                rawGrip = { x: x, y: rect.bottom - h * .24 };
+                contact = { x: x + w * .5, y: rawGrip.y + h * .24 };
+            }
+        } else {
+            var contactY = rect.top + Math.min(rect.height * .26, 50) - h * .50;
+            rawApproach = {
+                x: side === "left" ? rect.left - w * 1.08 : rect.right + w * .08,
+                y: rect.bottom - h * .72
+            };
+            rawGrip = {
+                x: side === "left" ? rect.left - w * .84 : rect.right - w * .16,
+                y: contactY
+            };
+            contact = {
+                x: side === "left" ? rawGrip.x + w * .84 : rawGrip.x + w * .16,
+                y: rawGrip.y + h * .5
+            };
+        }
+        var approach = clampPosition(rawApproach);
+        var grip = clampPosition(rawGrip);
+        var contactAfterClamp = {
+            x: contact.x + grip.x - rawGrip.x,
+            y: contact.y + grip.y - rawGrip.y
+        };
+        var edgeDistance = side === "top" ? Math.abs(contactAfterClamp.y - rect.top) :
+            side === "bottom" ? Math.abs(contactAfterClamp.y - rect.bottom) :
+            side === "left" ? Math.abs(contactAfterClamp.x - rect.left) :
+            Math.abs(contactAfterClamp.x - rect.right);
+        var fits = overlaps(petRectAt(grip), rect, 0);
+        if (compact) {
+            fits = fits && petVisibleRatio(grip) >= .58 &&
+                clampShift(rawGrip, grip) <= Math.max(14, Math.min(w, h) * .22) &&
+                edgeDistance <= Math.max(10, Math.min(w, h) * .14);
+        }
         return {
             element: element,
             rect: rect,
-            approach: clampPosition({
-                x: side === "left" ? rect.left - w * 1.08 : rect.right + w * .08,
-                y: rect.bottom - h * .72
-            }),
-            grip: clampPosition({
-                x: side === "left" ? rect.left - w * .84 : rect.right - w * .16,
-                y: contactY
-            })
+            edge: side,
+            approach: approach,
+            grip: grip,
+            contact: contactAfterClamp,
+            fits: fits,
+            facing: side === "left" ? 1 : side === "right" ? -1 :
+                (currentPosition.x + w / 2 < rect.left + rect.width / 2 ? 1 : -1)
         };
     }
 
@@ -1509,7 +1650,7 @@
         if (!clock || !card) return null;
         var clockRect = visibleRect(clock);
         var rect = card.getBoundingClientRect();
-        if (!rect.width || !rect.height) return null;
+        if (!rectHasVisibleArea(clockRect) || !rectHasVisibleArea(rect)) return null;
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
         var bounds = getViewportBounds();
@@ -1518,6 +1659,10 @@
             y: rect.top - h * .70
         };
         var safeTop = clampPosition(rawTop);
+        var edge = clampPosition({
+            x: side === "left" ? rect.left - w * .84 : rect.right - w * .16,
+            y: rect.top + Math.min(rect.height * .28, 54) - h * .50
+        });
         var topContactDepth = safeTop.y + h - rect.top;
         var topCenterX = safeTop.x + w / 2;
         return {
@@ -1532,11 +1677,9 @@
                 x: side === "left" ? clockRect.left - w * .86 : clockRect.right - w * .14,
                 y: clockRect.bottom - h * .72
             }),
-            edge: clampPosition({
-                x: side === "left" ? rect.left - w * .84 : rect.right - w * .16,
-                y: rect.top + Math.min(rect.height * .28, 54) - h * .50
-            }),
+            edge: edge,
             top: safeTop,
+            edgeFits: overlaps(petRectAt(edge), rect, 0),
             /* A clock close to the safe-area edge may need the cat position
                clamped while still leaving a convincing overlap with the real
                card. Judge the visible contact, not the unclamped coordinate. */
@@ -1549,6 +1692,8 @@
     function digitScratchGeometry(side) {
         var card = document.getElementById(side === "right" ? "minute-card" : "hour-card");
         if (!card) return null;
+        var cardRect = card.getBoundingClientRect();
+        if (!rectHasVisibleArea(cardRect)) return null;
         var digit = card.querySelector(".leaf.front .num");
         var clip = digit && digit.parentElement;
         if (!digit || !clip || !digit.firstChild) return null;
@@ -1572,34 +1717,99 @@
             x: side === "left" ? visible.left + Math.min(10, visible.width * .10) : visible.right - Math.min(10, visible.width * .10),
             y: visible.top + visible.height * .64
         };
+        var approach = clampPosition({
+            x: side === "left" ? cardRect.left - w * .92 : cardRect.right - w * .08,
+            y: cardRect.bottom - h * .72
+        });
+        var scratch = clampPosition({
+            x: side === "left" ? contact.x - w * .84 : contact.x - w * .16,
+            y: contact.y - h * .64
+        });
         return {
             card: card,
             digit: digit,
             visible: visible,
             contact: contact,
-            approach: clampPosition({
-                x: side === "left" ? card.getBoundingClientRect().left - w * .92 : card.getBoundingClientRect().right - w * .08,
-                y: card.getBoundingClientRect().bottom - h * .72
-            }),
-            scratch: clampPosition({
-                x: side === "left" ? contact.x - w * .84 : contact.x - w * .16,
-                y: contact.y - h * .64
-            })
+            approach: approach,
+            scratch: scratch,
+            fits: contact.x >= scratch.x && contact.x <= scratch.x + w &&
+                contact.y >= scratch.y && contact.y <= scratch.y + h
         };
     }
 
-    function cardPeekGeometry() {
+    function cardPeekGeometry(preferredEdge) {
         var message = messageBoardEl();
         if (!message) return null;
         var rect = message.getBoundingClientRect();
+        if (!rectHasVisibleArea(rect)) return null;
         var w = walker.offsetWidth || 116;
         var h = walker.offsetHeight || 116;
-        var y = rect.top + Math.min(rect.height * .24, 62) - h * .42;
-        return {
-            rect: rect,
-            hidden: clampPosition({ x: rect.right - w * .94, y: y }),
-            peek: clampPosition({ x: rect.right - w * .58, y: y })
-        };
+        var compact = compactCardLayout(rect);
+        var defaults = compact ? ["top", "right", "left", "bottom"] : ["right"];
+        var edges = preferredEdge ? [preferredEdge] : [];
+        for (var edgeIndex = 0; edgeIndex < defaults.length; edgeIndex++) {
+            if (defaults[edgeIndex] !== preferredEdge) edges.push(defaults[edgeIndex]);
+        }
+        var viewport = viewportSize();
+        for (var i = 0; i < edges.length; i++) {
+            var edge = edges[i];
+            var rawHidden;
+            var rawPeek;
+            if (edge === "top" || edge === "bottom") {
+                var inset = Math.min(16, rect.width * .08);
+                var minimumX = rect.left + inset;
+                var maximumX = rect.right - w - inset;
+                var x = maximumX >= minimumX
+                    ? Math.max(minimumX, Math.min(maximumX, currentPosition.x))
+                    : rect.left + (rect.width - w) / 2;
+                if (edge === "top") {
+                    rawHidden = { x: x, y: rect.top - h * .18 };
+                    rawPeek = { x: x, y: rect.top - h * .56 };
+                } else {
+                    rawHidden = { x: x, y: rect.bottom - h * .82 };
+                    rawPeek = { x: x, y: rect.bottom - h * .44 };
+                }
+            } else {
+                var y = rect.top + Math.min(rect.height * .24, 62) - h * .42;
+                if (edge === "left") {
+                    rawHidden = { x: rect.left - w * .06, y: y };
+                    rawPeek = { x: rect.left - w * .42, y: y };
+                } else {
+                    rawHidden = { x: rect.right - w * .94, y: y };
+                    rawPeek = { x: rect.right - w * .58, y: y };
+                }
+            }
+            var hidden = clampPosition(rawHidden);
+            var peek = clampPosition(rawPeek);
+            var motion = Math.abs(peek.x - hidden.x) + Math.abs(peek.y - hidden.y);
+            var exposed = edge === "top"
+                ? Math.max(0, Math.min(rect.top, viewport.height) - Math.max(peek.y, 0))
+                : edge === "bottom"
+                    ? Math.max(0, Math.min(peek.y + h, viewport.height) - Math.max(rect.bottom, 0))
+                    : edge === "left"
+                        ? Math.max(0, Math.min(rect.left, viewport.width) - Math.max(peek.x, 0))
+                        : Math.max(0, Math.min(peek.x + w, viewport.width) - Math.max(rect.right, 0));
+            var edgeSize = edge === "top" || edge === "bottom" ? h : w;
+            var fits = overlaps(petRectAt(peek), rect, 0) && motion >= Math.max(12, edgeSize * .12);
+            if (compact) {
+                fits = fits && petVisibleRatio(peek) >= .58 &&
+                    exposed >= edgeSize * .38 &&
+                    clampShift(rawPeek, peek) <= Math.max(14, edgeSize * .22);
+            }
+            if (fits) {
+                return {
+                    rect: rect,
+                    edge: edge,
+                    hidden: hidden,
+                    peek: peek,
+                    exposed: exposed,
+                    fits: true,
+                    facing: edge === "left" ? -1 : edge === "right" ? 1 :
+                        (currentPosition.x + w / 2 < rect.left + rect.width / 2 ? 1 : -1)
+                };
+            }
+        }
+        return null;
     }
 
     function newActionPoint(name) {
@@ -1607,23 +1817,27 @@
             return lifestylePhase === "approach" ? clampPosition(currentPosition) : lifestyleTargetPoint();
         }
         if (name === "card-peek") {
-            var cardGeometry = cardPeekGeometry();
-            return cardGeometry ? cardGeometry.peek : currentPosition;
+            var cardGeometry = cardPeekGeometry(activeCardPeekEdge);
+            if (cardGeometry) {
+                activeCardPeekEdge = cardGeometry.edge;
+                home.style.setProperty("--jinzhu-facing", String(cardGeometry.facing));
+            }
+            return cardGeometry && cardGeometry.fits ? cardGeometry.peek : null;
         }
         if (isCardGripAction(name)) {
             var gripGeometry = cardGripGeometry(activeCardGripKind, activeCardGripSide);
-            return gripGeometry ? gripGeometry.grip : currentPosition;
+            return gripGeometry && gripGeometry.fits ? gripGeometry.grip : null;
         }
         if (name === "look-clock" || name === "jump-clock" || name === "scratch-digits" || name === "lie-clock" || name === "paw-tap") {
             if (name === "scratch-digits") {
                 var digitGeometry = digitScratchGeometry(activeClockSide);
-                return digitGeometry ? digitGeometry.scratch : currentPosition;
+                return digitGeometry && digitGeometry.fits ? digitGeometry.scratch : null;
             }
             var clockGeometry = clockInteractionGeometry(activeClockSide);
-            if (!clockGeometry) return currentPosition;
+            if (!clockGeometry) return null;
             if (name === "look-clock") return clockGeometry.look;
-            if (name === "paw-tap") return clockGeometry.edge;
-            return clockGeometry.top;
+            if (name === "paw-tap") return clockGeometry.edgeFits ? clockGeometry.edge : null;
+            return clockGeometry.topFits ? clockGeometry.top : null;
         }
         return currentPosition;
     }
@@ -2125,17 +2339,29 @@
 
     function animateActionPosition(start, end, duration, arcHeight, done) {
         cancelActionMotion();
+        if (!start || !end || !isFinite(Number(start.x)) || !isFinite(Number(start.y)) ||
+            !isFinite(Number(end.x)) || !isFinite(Number(end.y))) {
+            if (done) done();
+            return;
+        }
         var generation = actionMotionGeneration;
         var startedAt = Date.now();
+        var lastPaintAt = -Infinity;
+        var motionBounds = getViewportBounds();
+        duration = Math.max(1, Number(duration) || 1);
         var step = function () {
             if (generation !== actionMotionGeneration) return;
-            var progress = Math.max(0, Math.min(1, (Date.now() - startedAt) / duration));
+            var elapsed = Date.now() - startedAt;
+            var progress = Math.max(0, Math.min(1, elapsed / duration));
             var eased = progress * progress * (3 - 2 * progress);
             var arc = arcHeight ? Math.sin(Math.PI * progress) * arcHeight : 0;
-            setPosition({
-                x: start.x + (end.x - start.x) * eased,
-                y: start.y + (end.y - start.y) * eased - arc
-            }, 0, false);
+            if (!lowPowerDevice || progress === 1 || elapsed - lastPaintAt >= 42) {
+                setPosition({
+                    x: start.x + (end.x - start.x) * eased,
+                    y: start.y + (end.y - start.y) * eased - arc
+                }, 0, false, motionBounds, progress < 1);
+                lastPaintAt = elapsed;
+            }
             if (progress < 1) {
                 actionMotionFrame = window.requestAnimationFrame ? window.requestAnimationFrame(step) : setTimeout(step, 16);
             } else {
@@ -2177,11 +2403,13 @@
     function startLookAtClock() {
         activeClockSide = chooseClockSide();
         var geometry = clockInteractionGeometry(activeClockSide);
-        if (!geometry) { startGroundNewAction("look-clock"); return; }
+        if (!geometry) { finishNewAction(); return; }
         walkToActionPoint(geometry.look, function () {
             prepareNewActionLayers("look-clock");
             faceClock(activeClockSide);
-            setPosition(clockInteractionGeometry(activeClockSide).look, 0, false);
+            var fresh = clockInteractionGeometry(activeClockSide);
+            if (!fresh) { finishNewAction(); return; }
+            setPosition(fresh.look, 0, false);
             setStatus("look-clock");
             var config = newActionConfig["look-clock"];
             schedule(config.frame * config.frames.length + config.hold, finishNewAction, true);
@@ -2196,12 +2424,15 @@
             prepareNewActionLayers("jump-clock");
             faceClock(activeClockSide);
             var fresh = clockInteractionGeometry(activeClockSide);
+            if (!fresh || !fresh.topFits) { finishNewAction(); return; }
             setPosition(fresh.approach, 0, false);
             setStatus("jump-clock");
             var arcHeight = Math.max(82, Math.min(150, Math.abs(fresh.approach.y - fresh.top.y) * .48 + 46));
             animateActionPosition(fresh.approach, fresh.top, 1050, arcHeight, function () {
+                var landing = clockInteractionGeometry(activeClockSide);
+                if (!landing || !landing.topFits) { finishNewAction(); return; }
                 activeNewActionName = "lie-clock";
-                setPosition(clockInteractionGeometry(activeClockSide).top, 0, false);
+                setPosition(landing.top, 0, false);
                 setStatus("lie-clock");
                 if (previewOnly) {
                     var lieConfig = newActionConfig["lie-clock"];
@@ -2269,7 +2500,7 @@
 
     function beginDigitScratch() {
         var geometry = digitScratchGeometry(activeClockSide);
-        if (!geometry) { finishNewAction(); return; }
+        if (!geometry || !geometry.fits) { finishNewAction(); return; }
         setPosition(geometry.scratch, 0, false);
         setStatus("scratch-digits");
         [150, 450, 750, 1050].forEach(function (delay) {
@@ -2288,13 +2519,13 @@
     function startDigitScratch() {
         activeClockSide = chooseClockSide();
         var geometry = digitScratchGeometry(activeClockSide);
-        if (!geometry) { clearNewActionLayers(); idleFor(12, 35); return; }
+        if (!geometry || !geometry.fits) { clearNewActionLayers(); idleFor(12, 35); return; }
         if (actionTestMode) parkTestPanelAwayFrom(document.querySelector(".clock"));
         walkToActionPoint(geometry.approach, function () {
             prepareNewActionLayers("scratch-digits");
             faceClock(activeClockSide);
             var fresh = digitScratchGeometry(activeClockSide);
-            if (!fresh) { finishNewAction(); return; }
+            if (!fresh || !fresh.fits) { finishNewAction(); return; }
             setPosition(fresh.approach, 0, false);
             setStatus("jump-clock");
             var arcHeight = Math.max(62, Math.min(105, Math.abs(fresh.approach.y - fresh.scratch.y) * .34 + 36));
@@ -2345,19 +2576,20 @@
             name === "paw-rest-weather" ? "weather" : chooseCardGripKind();
         var target = cardGripElement(activeCardGripKind);
         if (!target) { clearNewActionLayers(); idleFor(12, 35); return; }
-        activeCardGripSide = chooseCardGripSide(target);
+        activeCardGripSide = chooseCardGripEdge(activeCardGripKind, target);
+        if (!activeCardGripSide) { clearNewActionLayers(); idleFor(12, 35); return; }
         var geometry = cardGripGeometry(activeCardGripKind, activeCardGripSide);
-        if (!geometry) { clearNewActionLayers(); idleFor(12, 35); return; }
+        if (!geometry || !geometry.fits) { clearNewActionLayers(); idleFor(12, 35); return; }
         if (actionTestMode) parkTestPanelAwayFrom(target);
         walkToActionPoint(geometry.approach, function () {
             prepareNewActionLayers(name);
-            home.style.setProperty("--jinzhu-facing", activeCardGripSide === "left" ? "1" : "-1");
             var fresh = cardGripGeometry(activeCardGripKind, activeCardGripSide);
-            if (!fresh) { finishNewAction(); return; }
+            if (!fresh || !fresh.fits) { finishNewAction(); return; }
+            home.style.setProperty("--jinzhu-facing", String(fresh.facing));
             setPosition(fresh.grip, 420, false);
             schedule(450, function () {
                 var contact = cardGripGeometry(activeCardGripKind, activeCardGripSide);
-                if (!contact) { finishNewAction(); return; }
+                if (!contact || !contact.fits) { finishNewAction(); return; }
                 setPosition(contact.grip, 0, false);
                 setStatus(name);
                 var config = newActionConfig[name];
@@ -2377,16 +2609,16 @@
     function startClockEdgeAction(name) {
         activeClockSide = chooseClockSide();
         var geometry = clockInteractionGeometry(activeClockSide);
-        if (!geometry) { startGroundNewAction(name); return; }
+        if (!geometry || !geometry.edgeFits) { finishNewAction(); return; }
         walkToActionPoint(geometry.approach, function () {
             prepareNewActionLayers(name);
             faceClock(activeClockSide);
             var fresh = clockInteractionGeometry(activeClockSide);
-            if (!fresh) { finishNewAction(); return; }
+            if (!fresh || !fresh.edgeFits) { finishNewAction(); return; }
             setPosition(fresh.edge, 360, false);
             schedule(390, function () {
                 var contact = clockInteractionGeometry(activeClockSide);
-                if (!contact) { finishNewAction(); return; }
+                if (!contact || !contact.edgeFits) { finishNewAction(); return; }
                 setPosition(contact.edge, 0, false);
                 setStatus(name);
                 var config = newActionConfig[name];
@@ -2404,8 +2636,10 @@
     }
 
     function retractCardPeek() {
-        var latest = cardPeekGeometry();
-        if (!latest) { finishNewAction(); return; }
+        var latest = cardPeekGeometry(activeCardPeekEdge);
+        if (!latest || !latest.fits) { finishNewAction(); return; }
+        activeCardPeekEdge = latest.edge;
+        home.style.setProperty("--jinzhu-facing", String(latest.facing));
         animateActionPosition(latest.peek, latest.hidden, 600, 0, finishNewAction);
     }
 
@@ -2416,10 +2650,12 @@
 
     function startCardPeekAction() {
         var geometry = cardPeekGeometry();
-        if (!geometry) { startGroundNewAction("card-peek"); return; }
+        if (!geometry || !geometry.fits) { finishNewAction(); return; }
         if (actionTestMode) parkTestPanelAwayFrom(messageBoardEl());
         clearScheduler();
         prepareNewActionLayers("card-peek");
+        activeCardPeekEdge = geometry.edge;
+        home.style.setProperty("--jinzhu-facing", String(geometry.facing));
         setPosition(geometry.hidden, 0, false);
         setStatus("card-peek");
         animateActionPosition(geometry.hidden, geometry.peek, 650, 0, function () {
@@ -3128,26 +3364,53 @@
             }
             if (activeNewActionName === "card-peek" && actionMotionFrame !== null) {
                 cancelActionMotion();
-                var resizedPeek = cardPeekGeometry();
-                if (!resizedPeek) { finishNewAction(); return; }
+                var resizedPeek = cardPeekGeometry(activeCardPeekEdge);
+                if (!resizedPeek || !resizedPeek.fits) { finishNewAction(); return; }
+                activeCardPeekEdge = resizedPeek.edge;
+                home.style.setProperty("--jinzhu-facing", String(resizedPeek.facing));
                 setPosition(resizedPeek.peek, 0, false);
                 holdThenRetractCardPeek();
                 return;
             }
-            setPosition(newActionPoint(activeNewActionName), 0, false);
+            var activePoint = newActionPoint(activeNewActionName);
+            if (!activePoint) { finishNewAction(); return; }
+            setPosition(activePoint, 0, false);
             positionLifestyleLayers();
         } else if (clockScratchActive) {
             var scratchPoint = clockScratchPoint();
             if (scratchPoint) setPosition(scratchPoint, 0, false);
             else finishClockScratch();
+        } else if (messageAnchorActive) {
+            var messageAnchor = messageAnchorPoint(messageAnchorActive);
+            if (messageAnchor && messageAnchor.point) setPosition(messageAnchor.point, 0, false);
+            else endMessageAnchor();
         } else if (clockAnchorActive) {
             var anchor = clockAnchorPoint(clockAnchorActive);
             if (anchor && anchor.point) setPosition(anchor.point, 0, false);
             else endClockAnchor();
+        } else if (climbing) {
+            /* The staged climb holds geometry captured before it starts. A
+               rotation invalidates those points, so abort this occurrence
+               instead of continuing toward stale desktop coordinates. */
+            climbing = false;
+            clearScheduler();
+            home.classList.remove("on-clock");
+            setStatus("idle");
+            setPosition(clampPosition(currentPosition), 0, false);
+            schedule(randomBetween(12, 35) * 1000, chooseNextBehavior);
         } else if (perched) {
             var geometry = clockClimbGeometry();
-            if (geometry) setPosition(geometry.top, 0);
-        } else setPosition(restoredPosition(), 0);
+            if (geometry && geometry.topFits) setPosition(geometry.top, 0);
+            else {
+                perched = false;
+                home.classList.remove("on-clock");
+                idleFor(12, 35);
+            }
+        } else {
+            /* Preserve the live pixel position when it is still valid. Rotation
+               and narrow-window resize only correct an actual boundary escape. */
+            setPosition(clampPosition(currentPosition), 0);
+        }
     }
 
     function handleMotionPreference() {
@@ -3160,19 +3423,50 @@
     if (reduceMotion.addEventListener) reduceMotion.addEventListener("change", handleMotionPreference);
     else if (reduceMotion.addListener) reduceMotion.addListener(handleMotionPreference);
 
-    window.addEventListener("resize", recalculatePosition);
-    window.addEventListener("orientationchange", function () { setTimeout(recalculatePosition, 120); });
-    window.addEventListener("scroll", recalculatePosition, { passive: true });
+    var layoutRecalcTimer = null;
+    var layoutRecalcFrame = null;
+    var updateAnchorOverlayAfterLayout = false;
+
+    function queuePositionRecalculation(delay, refreshOverlay) {
+        if (document.hidden) return;
+        updateAnchorOverlayAfterLayout = updateAnchorOverlayAfterLayout || !!refreshOverlay;
+        clearTimeout(layoutRecalcTimer);
+        if (layoutRecalcFrame !== null) {
+            if (window.cancelAnimationFrame) window.cancelAnimationFrame(layoutRecalcFrame);
+            else clearTimeout(layoutRecalcFrame);
+            layoutRecalcFrame = null;
+        }
+        layoutRecalcTimer = setTimeout(function () {
+            layoutRecalcTimer = null;
+            var run = function () {
+                layoutRecalcFrame = null;
+                if (document.hidden) return;
+                recalculatePosition();
+                if (updateAnchorOverlayAfterLayout) updateClockAnchorOverlay();
+                updateAnchorOverlayAfterLayout = false;
+            };
+            if (window.requestAnimationFrame) layoutRecalcFrame = window.requestAnimationFrame(run);
+            else run();
+        }, Math.max(0, Number(delay) || 0));
+    }
+
+    window.addEventListener("resize", function () { queuePositionRecalculation(80, true); });
+    window.addEventListener("orientationchange", function () { queuePositionRecalculation(160, true); });
+    window.addEventListener("scroll", function () { queuePositionRecalculation(80, false); }, { passive: true });
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", function () { queuePositionRecalculation(80, true); });
+        window.visualViewport.addEventListener("scroll", function () { queuePositionRecalculation(80, false); });
+    }
     /* Dynamic anchors are measured only on layout events, never per frame. */
     if (window.ResizeObserver) {
-        var anchorObserver = new ResizeObserver(function () { recalculatePosition(); updateClockAnchorOverlay(); });
+        var anchorObserver = new ResizeObserver(function () { queuePositionRecalculation(80, true); });
         [".clock", ".message", ".weather-card", ".container"].forEach(function (selector) {
             var target = document.querySelector(selector);
             if (target) anchorObserver.observe(target);
         });
     }
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { recalculatePosition(); });
-    window.addEventListener("jinzhu:clock-change", function () { recalculatePosition(); updateClockAnchorOverlay(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { queuePositionRecalculation(0, true); });
+    window.addEventListener("jinzhu:clock-change", function () { queuePositionRecalculation(0, true); });
     window.addEventListener("jinzhu:clock-tick", function (event) {
         var detail = event && event.detail || {};
         var minute = Number(detail.minute), second = Number(detail.second);
@@ -3597,7 +3891,7 @@
         var state = readTestPanelState();
         box.style.left = state.left + "px";
         box.style.top = state.top + "px";
-        setTestPanelCollapsed(state.collapsed);
+        setTestPanelCollapsed(state.collapsed || viewportSize().width <= 720);
 
         var handle = box.querySelector("[data-test-panel-drag]");
         var drag = null;
@@ -3627,7 +3921,14 @@
             box.classList.remove("is-dragging");
             saveTestPanelState();
         });
-        window.addEventListener("resize", function () { clampTestPanelPosition(); saveTestPanelState(); });
+        window.addEventListener("resize", function () {
+            if (viewportSize().width <= 720 && !box.classList.contains("is-collapsed")) {
+                setTestPanelCollapsed(true);
+                return;
+            }
+            clampTestPanelPosition();
+            saveTestPanelState();
+        });
     }
 
     catImage.addEventListener("error", function () {
