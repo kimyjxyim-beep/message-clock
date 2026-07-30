@@ -1065,6 +1065,77 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .jinzhu-cat img { width: 84px; height: 84px; }
 }
 
+/* Mac/desktop browsers can be narrower than the phone breakpoint. Keep the
+   desktop clock geometry coupled without changing any touch-device rules. */
+@media screen and (max-width: 1024px) and (hover: hover) and (pointer: fine) {
+    .clock {
+        --clock-card-width: min(390px, calc(47.5vw - 40px));
+        --clock-card-height: min(430px, calc(52.25vw - 44px));
+        --clock-number-size: min(280px, calc(34vw - 29px));
+        --clock-half-offset: max(-215px, calc(-26.125vw + 22px));
+    }
+    .clock > div { margin-left: 8px; margin-right: 8px; }
+    .flip-card {
+        width: var(--clock-card-width);
+        height: var(--clock-card-height);
+        max-width: none;
+        max-height: none;
+        flex: 0 0 var(--clock-card-width);
+    }
+    .card-half .num,
+    .leaf .num {
+        height: var(--clock-card-height);
+        max-height: none;
+        font-size: var(--clock-number-size);
+    }
+    .card-half.bottom .num,
+    .leaf.back .num {
+        top: var(--clock-half-offset);
+        max-height: none;
+    }
+    .colon {
+        flex: 0 0 auto;
+        font-size: clamp(50px, calc(6.69vw + 2px), 70px);
+    }
+    .date {
+        font-size: clamp(18px, 2.8vw, 28px);
+        line-height: 1.25;
+        text-align: center;
+    }
+    .widget-section,
+    .left-col,
+    .right-col,
+    .card { min-width: 0; }
+}
+
+@media screen and (max-width: 820px) and (hover: hover) and (pointer: fine) {
+    .container {
+        margin-top: clamp(20px, 4vh, 42px);
+        margin-bottom: 4vh;
+    }
+    .header-section { margin-bottom: 35px; }
+    .widget-section {
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        gap: 0;
+    }
+    .left-col, .right-col { width: 100%; }
+    .left-col { margin-bottom: 8px; }
+    .card { padding: 20px; border-radius: 20px; }
+}
+
+@media screen and (min-width: 721px) and (max-width: 1024px) and (hover: hover) and (pointer: fine) {
+    .jinzhu-action-test {
+        width: min(230px, calc(100vw - 16px));
+        padding: 6px;
+        border-radius: 12px;
+        font-size: 11px;
+    }
+    .jinzhu-action-test-content { max-height: calc(42vh - 42px); overflow-y: auto; }
+    .jinzhu-action-test button { margin: 2px; padding: 6px 7px; }
+}
+
 /* iPad mini 1 tops out at an old Safari/WebKit build. Keep the core cards and
    pet, but avoid filters that add full-screen compositing work. */
 html.jinzhu-old-ipad .card {

@@ -45,6 +45,7 @@
     var storageKey = debugMode ? "messageClockJinzhuStateDebug" : "messageClockJinzhuState";
     var petStorage = new window.LocalStorageAdapter("");
     var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    var desktopFinePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
     var behaviorTimer = null;
     var spriteTimer = null;
     var bubbleTimer = null;
@@ -516,6 +517,12 @@
         };
     }
 
+    function narrowDesktopViewport() {
+        return viewportSize().width <= 1024 &&
+            desktopFinePointer.matches &&
+            !(Number(navigator.maxTouchPoints) > 0);
+    }
+
     function getViewportBounds() {
         var petWidth = walker.offsetWidth || 116;
         var petHeight = walker.offsetHeight || 116;
@@ -529,6 +536,11 @@
         var compact = viewport.width <= 600 || viewport.height <= 480;
         var visibleWidth = compact ? Math.min(petWidth, Math.max(56, petWidth * .72)) : petWidth;
         var visibleHeight = compact ? Math.min(petHeight, Math.max(60, petHeight * .68)) : petHeight;
+        if (narrowDesktopViewport()) {
+            var largeSprite = currentStatus === "rain" || rainActive;
+            visibleWidth = Math.max(visibleWidth, petWidth * (largeSprite ? .96 : .88));
+            visibleHeight = Math.max(visibleHeight, petHeight * (largeSprite ? .92 : .84));
+        }
         var minX = 8 - (petWidth - visibleWidth);
         var maxX = viewport.width - visibleWidth - 8;
         var minY = safeTop;
@@ -3891,7 +3903,7 @@
         var state = readTestPanelState();
         box.style.left = state.left + "px";
         box.style.top = state.top + "px";
-        setTestPanelCollapsed(state.collapsed || viewportSize().width <= 720);
+        setTestPanelCollapsed(state.collapsed || viewportSize().width <= 720 || narrowDesktopViewport());
 
         var handle = box.querySelector("[data-test-panel-drag]");
         var drag = null;
@@ -3922,7 +3934,7 @@
             saveTestPanelState();
         });
         window.addEventListener("resize", function () {
-            if (viewportSize().width <= 720 && !box.classList.contains("is-collapsed")) {
+            if ((viewportSize().width <= 720 || narrowDesktopViewport()) && !box.classList.contains("is-collapsed")) {
                 setTestPanelCollapsed(true);
                 return;
             }
