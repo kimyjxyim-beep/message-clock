@@ -1397,9 +1397,9 @@
         var side = chooseClockSide();
         var geometry = clockInteractionGeometry(side);
         if (!geometry || !geometry.topFits) return false;
+        if (!startClockJump("lie-clock", false)) return false;
         state.nextClockSleepAllowed = Date.now() + randomBetween(75, 150) * 60000;
         state["newAction_lie-clock"] = Date.now() + newActionConfig["lie-clock"].cooldown;
-        startClockJump("lie-clock", false);
         saveState();
         return true;
     }
