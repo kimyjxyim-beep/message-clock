@@ -490,6 +490,13 @@
         clearTimeout(behaviorTimer);
         behaviorTimer = null;
         schedulerGeneration++;
+        /* A clock anchor's staging delay uses the same scheduler as normal
+           behavior.  Clear its independent state whenever that scheduler is
+           cancelled so a hidden-page transition cannot leave the pet pinned
+           to a stale clock point. */
+        if (clockAnchorActive || clockAnchorTimer !== null || home.classList.contains("on-clock")) {
+            clearClockAnchorState();
+        }
         renderStats();
     }
 
@@ -1034,14 +1041,21 @@
         if (!matched && Math.random() < .16) startMessageVisit(Math.random() < .5 ? "message-peek" : "message-sit", false);
     });
 
-    function endClockAnchor() {
+    function clearClockAnchorState() {
+        var hadAnchor = !!clockAnchorActive || clockAnchorTimer !== null || home.classList.contains("on-clock");
         clearTimeout(clockAnchorTimer);
         clockAnchorTimer = null;
         clockAnchorActive = "";
         home.classList.remove("on-clock");
         home.style.removeProperty("--jinzhu-perch-scale");
-        setStatus("idle");
+        if (hadAnchor) setStatus("idle");
+        return hadAnchor;
+    }
+
+    function endClockAnchor() {
+        if (!clearClockAnchorState()) return false;
         schedule(randomBetween(45, 120) * 1000, chooseNextBehavior);
+        return true;
     }
 
     /* The hour scratch is a small, self-contained clock moment.  It never
@@ -3512,6 +3526,9 @@
     });
 
     document.addEventListener("visibilitychange", function () {
+        if (clockAnchorActive || clockAnchorTimer !== null || home.classList.contains("on-clock")) {
+            clearClockAnchorState();
+        }
         clearScheduler();
         clearInterval(spriteTimer);
         spriteTimer = null;
@@ -3589,6 +3606,9 @@
     }
 
     function restoreRoutine() {
+        if (clockAnchorActive || clockAnchorTimer !== null || home.classList.contains("on-clock")) {
+            clearClockAnchorState();
+        }
         clearScheduler();
         applyElapsedTime();
         renderStats();
