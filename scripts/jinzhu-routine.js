@@ -2873,6 +2873,19 @@
         freezeLayer = document.createElement("div");
         freezeLayer.className = "jinzhu-freeze-effect is-active";
         freezeLayer.setAttribute("aria-hidden", "true");
+        for (var i = 0; i < 8; i++) {
+            var snowflake = document.createElement("span");
+            snowflake.className = "jinzhu-freeze-snow";
+            snowflake.textContent = "❄️";
+            snowflake.style.left = (8 + Math.random() * 84).toFixed(1) + "%";
+            snowflake.style.top = (-18 - Math.random() * 16).toFixed(1) + "px";
+            snowflake.style.setProperty("--snow-size", (12 + Math.random() * 7).toFixed(1) + "px");
+            snowflake.style.setProperty("--snow-duration", (3.7 + Math.random() * 1.1).toFixed(2) + "s");
+            snowflake.style.setProperty("--snow-delay", (Math.random() * .25).toFixed(2) + "s");
+            snowflake.style.setProperty("--snow-drift", ((Math.random() - .5) * 34).toFixed(1) + "px");
+            snowflake.style.setProperty("--snow-opacity", (.42 + Math.random() * .22).toFixed(2));
+            freezeLayer.appendChild(snowflake);
+        }
         document.body.appendChild(freezeLayer);
         var layer = freezeLayer;
         freezeTimer = setTimeout(function () {
