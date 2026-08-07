@@ -786,49 +786,78 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     visibility: hidden;
     opacity: 0;
     background:
-        radial-gradient(ellipse at 50% 110%, rgba(145, 225, 255, .42), transparent 58%),
-        linear-gradient(135deg, rgba(222, 249, 255, .18), rgba(93, 185, 235, .16));
+        radial-gradient(ellipse at 0 0, rgba(232, 251, 255, .34) 0 12%, transparent 38%),
+        radial-gradient(ellipse at 100% 0, rgba(232, 251, 255, .30) 0 13%, transparent 40%),
+        radial-gradient(ellipse at 0 100%, rgba(220, 248, 255, .25) 0 13%, transparent 40%),
+        radial-gradient(ellipse at 100% 100%, rgba(220, 248, 255, .23) 0 14%, transparent 42%),
+        radial-gradient(ellipse at 50% 0, rgba(224, 249, 255, .16) 0 8%, transparent 34%),
+        radial-gradient(ellipse at 50% 100%, rgba(214, 245, 255, .13) 0 8%, transparent 35%);
     mix-blend-mode: screen;
 }
 .jinzhu-freeze-effect::before,
 .jinzhu-freeze-effect::after {
     content: "";
     position: absolute;
-    inset: -12px;
+    inset: -2px;
     pointer-events: none;
 }
 .jinzhu-freeze-effect::before {
-    border: 13px solid rgba(224, 250, 255, .76);
-    border-radius: 24px;
+    border: 1px solid rgba(239, 253, 255, .58);
+    border-radius: 18px;
     box-shadow:
-        inset 0 0 28px rgba(168, 235, 255, .9),
-        inset 0 0 72px rgba(226, 250, 255, .48),
-        0 0 24px rgba(192, 240, 255, .7);
+        inset 0 0 18px rgba(228, 251, 255, .66),
+        inset 0 0 54px rgba(191, 235, 255, .26),
+        0 0 18px rgba(207, 246, 255, .38);
     background:
-        radial-gradient(circle at 0 0, rgba(255,255,255,.9) 0 3%, transparent 16%),
-        radial-gradient(circle at 100% 0, rgba(255,255,255,.82) 0 4%, transparent 18%),
-        radial-gradient(circle at 0 100%, rgba(255,255,255,.78) 0 4%, transparent 19%),
-        radial-gradient(circle at 100% 100%, rgba(255,255,255,.88) 0 3%, transparent 17%);
-    filter: blur(.25px);
+        radial-gradient(ellipse at 0 0, rgba(255,255,255,.72) 0 5%, transparent 24%),
+        radial-gradient(ellipse at 100% 0, rgba(255,255,255,.66) 0 6%, transparent 26%),
+        radial-gradient(ellipse at 0 100%, rgba(255,255,255,.58) 0 6%, transparent 28%),
+        radial-gradient(ellipse at 100% 100%, rgba(255,255,255,.56) 0 7%, transparent 29%),
+        radial-gradient(ellipse at 50% 0, rgba(245,253,255,.27) 0 4%, transparent 25%),
+        radial-gradient(ellipse at 50% 100%, rgba(239,252,255,.23) 0 4%, transparent 25%);
+    filter: blur(.35px);
 }
 .jinzhu-freeze-effect::after {
-    background:
-        repeating-linear-gradient(118deg, transparent 0 38px, rgba(235, 252, 255, .32) 39px 41px, transparent 42px 82px),
-        repeating-linear-gradient(28deg, transparent 0 54px, rgba(193, 239, 255, .22) 55px 57px, transparent 58px 110px);
-    opacity: .72;
-    filter: blur(1px);
-    transform: scale(1.06) rotate(-1deg);
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23f1fcff' stroke-opacity='.48' stroke-width='.6'%3E%3Cpath d='M0 0H24M0 0V24M0 0L16 16M8 0L15 7M0 8L7 15M23 0L18 5M0 23L5 18M11 0L18 7M0 11L7 18'/%3E%3Cpath d='M100 0H76M100 0V24M100 0L84 16M92 0L85 7M100 8L93 15M77 0L82 5M100 23L95 18M89 0L82 7M100 11L93 18'/%3E%3Cpath d='M0 100H24M0 100V76M0 100L16 84M8 100L15 93M0 92L7 85M23 100L18 95M0 77L5 82M11 100L18 93M0 89L7 82'/%3E%3Cpath d='M100 100H76M100 100V76M100 100L84 84M92 100L85 93M100 92L93 85M77 100L82 95M100 77L95 82M89 100L82 93M100 89L93 82'/%3E%3C/g%3E%3C/svg%3E"),
+        radial-gradient(circle at 8% 10%, transparent 0 3.2%, rgba(239,253,255,.55) 3.35% 3.7%, transparent 3.85% 7.6%, rgba(232,251,255,.3) 7.8% 8.1%, transparent 8.3% 100%),
+        radial-gradient(circle at 92% 11%, transparent 0 3.8%, rgba(239,253,255,.48) 3.95% 4.3%, transparent 4.45% 8.5%, rgba(232,251,255,.26) 8.7% 9%, transparent 9.2% 100%),
+        radial-gradient(circle at 10% 88%, transparent 0 3.4%, rgba(239,253,255,.42) 3.55% 3.9%, transparent 4.05% 8%, rgba(232,251,255,.24) 8.2% 8.6%, transparent 8.8% 100%),
+        radial-gradient(circle at 90% 89%, transparent 0 3.1%, rgba(239,253,255,.4) 3.25% 3.6%, transparent 3.75% 7.5%, rgba(232,251,255,.22) 7.7% 8.1%, transparent 8.3% 100%);
+    background-size: 100% 100%, auto, auto, auto, auto;
+    background-repeat: no-repeat;
+    opacity: .52;
+    filter: blur(.75px);
+    transform: scale(1.015);
 }
 .jinzhu-freeze-effect.is-active {
     visibility: visible;
-    opacity: .96;
-    animation: jinzhu-aircon-freeze 5s ease-out both;
+    opacity: .88;
+    animation: jinzhu-aircon-fog 5s ease-out both;
 }
-@keyframes jinzhu-aircon-freeze {
-    0% { opacity: 0; transform: scale(1.02); }
-    12% { opacity: .96; transform: scale(1); }
-    72% { opacity: .9; transform: scale(1); }
-    100% { opacity: 0; transform: scale(1.005); }
+.jinzhu-freeze-effect.is-active::before {
+    animation: jinzhu-frost-edge 5s ease-out both;
+}
+.jinzhu-freeze-effect.is-active::after {
+    animation: jinzhu-frost-crystals 5s ease-out both;
+}
+@keyframes jinzhu-aircon-fog {
+    0% { opacity: 0; }
+    10% { opacity: .88; }
+    70% { opacity: .78; }
+    100% { opacity: 0; }
+}
+@keyframes jinzhu-frost-edge {
+    0% { opacity: 0; transform: scale(1.035); filter: blur(3px); }
+    10% { opacity: .9; transform: scale(1); filter: blur(.35px); }
+    70% { opacity: .82; transform: scale(1); filter: blur(.45px); }
+    100% { opacity: 0; transform: scale(1.018); filter: blur(2.5px); }
+}
+@keyframes jinzhu-frost-crystals {
+    0% { opacity: 0; transform: scale(1.05); filter: blur(3px); }
+    14% { opacity: .52; transform: scale(1); filter: blur(.75px); }
+    66% { opacity: .42; transform: scale(1); filter: blur(.9px); }
+    100% { opacity: 0; transform: scale(1.02); filter: blur(2px); }
 }
 .jinzhu-world-debug {
     position: fixed;
@@ -899,7 +928,10 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .jinzhu-home .jinzhu-cat img { animation: none !important; }
     .jinzhu-sun-patch, .jinzhu-cat-grass-layer { animation: none !important; }
     .weather-effects i { display: none; }
-    .jinzhu-freeze-effect.is-active { animation: none; opacity: .9; }
+    .jinzhu-freeze-effect.is-active,
+    .jinzhu-freeze-effect.is-active::before,
+    .jinzhu-freeze-effect.is-active::after { animation: none; }
+    .jinzhu-freeze-effect.is-active { opacity: .78; }
     .sky-stars, body { transition: none !important; }
 }
 
