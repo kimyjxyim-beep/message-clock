@@ -73,6 +73,8 @@
     var rainActive = false;
     var latestWeather = null;
     var reminderActive = false;
+    var freezeLayer = null;
+    var freezeTimer = null;
     var ownerMood = "normal";
     var companionMode = "normal";
     var animationMode = "system";
@@ -2860,8 +2862,24 @@
         } else {
             setStatus("happy");
             say("冷氣開咗，唔該主人。");
+            triggerAirconFreeze();
             schedule(3000, function () { idleFor(45, 100); }, true);
         }
+    }
+
+    function triggerAirconFreeze() {
+        clearTimeout(freezeTimer);
+        if (freezeLayer && freezeLayer.parentNode) freezeLayer.parentNode.removeChild(freezeLayer);
+        freezeLayer = document.createElement("div");
+        freezeLayer.className = "jinzhu-freeze-effect is-active";
+        freezeLayer.setAttribute("aria-hidden", "true");
+        document.body.appendChild(freezeLayer);
+        var layer = freezeLayer;
+        freezeTimer = setTimeout(function () {
+            if (layer.parentNode) layer.parentNode.removeChild(layer);
+            if (freezeLayer === layer) freezeLayer = null;
+            freezeTimer = null;
+        }, 5000);
     }
 
     function forceDebugAction(action) {

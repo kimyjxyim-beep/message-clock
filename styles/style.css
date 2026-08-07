@@ -777,6 +777,59 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
 }
 .rain-heavy i, .rain-thunder i { width: 1.4px; background: linear-gradient(transparent, rgba(205,228,245,.68)); }
 @keyframes weather-rain { to { transform: translate3d(-5vw, 120vh, 0) rotate(8deg); } }
+.jinzhu-freeze-effect {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    overflow: hidden;
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+    background:
+        radial-gradient(ellipse at 50% 110%, rgba(145, 225, 255, .42), transparent 58%),
+        linear-gradient(135deg, rgba(222, 249, 255, .18), rgba(93, 185, 235, .16));
+    mix-blend-mode: screen;
+}
+.jinzhu-freeze-effect::before,
+.jinzhu-freeze-effect::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    pointer-events: none;
+}
+.jinzhu-freeze-effect::before {
+    border: 13px solid rgba(224, 250, 255, .76);
+    border-radius: 24px;
+    box-shadow:
+        inset 0 0 28px rgba(168, 235, 255, .9),
+        inset 0 0 72px rgba(226, 250, 255, .48),
+        0 0 24px rgba(192, 240, 255, .7);
+    background:
+        radial-gradient(circle at 0 0, rgba(255,255,255,.9) 0 3%, transparent 16%),
+        radial-gradient(circle at 100% 0, rgba(255,255,255,.82) 0 4%, transparent 18%),
+        radial-gradient(circle at 0 100%, rgba(255,255,255,.78) 0 4%, transparent 19%),
+        radial-gradient(circle at 100% 100%, rgba(255,255,255,.88) 0 3%, transparent 17%);
+    filter: blur(.25px);
+}
+.jinzhu-freeze-effect::after {
+    background:
+        repeating-linear-gradient(118deg, transparent 0 38px, rgba(235, 252, 255, .32) 39px 41px, transparent 42px 82px),
+        repeating-linear-gradient(28deg, transparent 0 54px, rgba(193, 239, 255, .22) 55px 57px, transparent 58px 110px);
+    opacity: .72;
+    filter: blur(1px);
+    transform: scale(1.06) rotate(-1deg);
+}
+.jinzhu-freeze-effect.is-active {
+    visibility: visible;
+    opacity: .96;
+    animation: jinzhu-aircon-freeze 5s ease-out both;
+}
+@keyframes jinzhu-aircon-freeze {
+    0% { opacity: 0; transform: scale(1.02); }
+    12% { opacity: .96; transform: scale(1); }
+    72% { opacity: .9; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.005); }
+}
 .jinzhu-world-debug {
     position: fixed;
     left: 8px;
@@ -846,6 +899,7 @@ body.theme-midnight { background: linear-gradient(135deg, #000000 0%, #1c1c1e 10
     .jinzhu-home .jinzhu-cat img { animation: none !important; }
     .jinzhu-sun-patch, .jinzhu-cat-grass-layer { animation: none !important; }
     .weather-effects i { display: none; }
+    .jinzhu-freeze-effect.is-active { animation: none; opacity: .9; }
     .sky-stars, body { transition: none !important; }
 }
 

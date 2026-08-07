@@ -301,9 +301,20 @@
         flushQueues();
     }
     function flushQueues() {
-        if (!bridge || bridge.isBusy()) return;
-        if (!currentReminder && reminderQueue.length) showReminder(reminderQueue.shift());
-        else if (!currentReminder && catMessageQueue.length) bridge.say(catMessageQueue.shift());
+        if (!bridge || currentReminder) return;
+        if (reminderQueue.length) {
+            if (reminderBlocked(reminderQueue[0])) return;
+            showReminder(reminderQueue.shift());
+        } else if (catMessageQueue.length && !bridge.isBusy()) bridge.say(catMessageQueue.shift());
+    }
+
+    function reminderBlocked(type) {
+        if (!bridge) return true;
+        /* The heat prompt intentionally follows requestHeat(), which puts the
+           cat in its existing heat state before the prompt is shown. Treat
+           that one state as displayable; otherwise the busy guard blocks the
+           reminder it is supposed to introduce. */
+        return bridge.isBusy() && !(type === "heat" && bridge.getStatus && bridge.getStatus() === "heat");
     }
 
     function queueReminder(type) {
@@ -324,7 +335,7 @@
         return list[Math.floor(Math.random() * list.length)];
     }
     function showReminder(type) {
-        if (!bridge || bridge.isBusy()) { queueReminder(type); return; }
+        if (reminderBlocked(type)) { queueReminder(type); return; }
         currentReminder = type;
         if (bridge && bridge.setReminder) bridge.setReminder(true);
         var rest = type === "rest", heat = type === "heat", meal = type === "breakfast" || type === "lunch" || type === "dinner";
